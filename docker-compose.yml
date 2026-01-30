@@ -1,0 +1,28 @@
+services:
+  bandmate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bandmate
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=file:/app/data/bandmate.db
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-bandmate-access-secret-change-me}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-bandmate-refresh-secret-change-me}
+      - JWT_ACCESS_EXPIRY=15m
+      - JWT_REFRESH_EXPIRY=7d
+      - ADMIN_EMAIL=admin@bandmate.local
+      - ADMIN_PASSWORD=admin
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

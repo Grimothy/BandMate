@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("MEMBER") // ADMIN or MEMBER
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects     ProjectMember[]
+  comments     Comment[]
+  managedFiles ManagedFile[]
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique // Filesystem-safe, immutable identifier
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members ProjectMember[]
+  vibes   Vibe[]
+}
+
+model ProjectMember {
+  id             String  @id @default(uuid())
+  userId         String
+  projectId      String
+  canCreateVibes Boolean @default(true)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+model Vibe {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   // Filesystem-safe, immutable identifier
+  image     String?
+  theme     String?
+  notes     String?
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cuts         Cut[]
+
+  @@unique([projectId, slug]) // Slug unique within project
+}
+
+model Cut {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   // Filesystem-safe, immutable identifier
+  vibeId    String
+  lyrics    String?  // JSON string: array of { managedFileId, lines: [{ timestamp, text }] }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vibe         Vibe          @relation(fields: [vibeId], references: [id], onDelete: Cascade)
+  managedFiles ManagedFile[]
+  comments     Comment[]
+
+  @@unique([vibeId, slug]) // Slug unique within vibe
+}
+
+model Comment {
+  id            String   @id @default(uuid())
+  content       String
+  timestamp     Float?   // Optional for replies (inherited from parent)
+  managedFileId String   // Reference to the audio file (ManagedFile with type="CUT")
+  cutId         String
+  userId        String
+  parentId      String?  // For reply threading - null means top-level comment
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Cascade)
+  cut         Cut         @relation(fields: [cutId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Comment?    @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[]   @relation("CommentReplies")
+}
+
+model ManagedFile {
+  id           String   @id @default(uuid())
+  name         String?  // Optional user-defined name/label
+  filename     String   // UUID filename on disk
+  originalName String   // Original filename from upload
+  path         String   // Relative path to file
+  fileSize     Int      // Size in bytes
+  mimeType     String   // MIME type
+  type         String   // "CUT" (audio) or "STEM" (zip)
+  
+  // Audio-specific fields (only used when type="CUT")
+  duration     Float?   // Audio duration in seconds
+  waveformData String?  // Cached waveform data for visualization
+  
+  // Hierarchy linkage - cutId required, vibeId/projectId derivable via relations
+  cutId        String
+  uploadedById String
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cut        Cut       @relation(fields: [cutId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  comments   Comment[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

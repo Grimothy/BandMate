@@ -1,0 +1,30 @@
+import api from './client';
+import { User, AuthResponse } from '../types';
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/login', { email, password });
+  if (response.data.accessToken) {
+    localStorage.setItem('accessToken', response.data.accessToken);
+  }
+  return response.data;
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await api.post('/auth/logout');
+  } finally {
+    localStorage.removeItem('accessToken');
+  }
+}
+
+export async function getCurrentUser(): Promise<User> {
+  const response = await api.get<{ user: User }>('/auth/me');
+  return response.data.user;
+}
+
+export async function refreshToken(): Promise<string> {
+  const response = await api.post<{ accessToken: string }>('/auth/refresh');
+  const { accessToken } = response.data;
+  localStorage.setItem('accessToken', accessToken);
+  return accessToken;
+}
