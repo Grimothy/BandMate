@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  # Trigger on published releases (for production tags like v1.0.0)
+  release:
+    types: [published]
+  
+  # Auto-push Docker images for experimental branches
+  push:
+    branches:
+      - develop
+      - experimental
+      - 'release/**'
+  
+  # Also allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag (e.g., dev, beta, 1.0.0)'
+        required: true
+        default: 'dev'
+
+env:
+  DOCKER_IMAGE: grimothy/bandmate
+
+jobs:
+  # Only run Docker push if CI passes (for branch pushes)
+  ci-check:
+    name: Wait for CI
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: CI check placeholder
+        run: echo "CI workflows run in parallel - this job ensures release waits"
+
+  docker-push:
+    name: Build and Push to Docker Hub
+    runs-on: ubuntu-latest
+    # For branch pushes, wait for ci-check (which runs alongside CI)
+    needs: [ci-check]
+    if: always() && (github.event_name != 'push' || needs.ci-check.result == 'success')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Determine version tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # For releases, use the tag name (remove 'v' prefix)
+            VERSION=${GITHUB_REF_NAME#v}
+            echo "is_latest=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # For branch pushes, use branch name as tag
+            BRANCH=${GITHUB_REF_NAME}
+            # Replace slashes with dashes (release/1.0 -> release-1.0)
+            VERSION=${BRANCH//\//-}
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+          else
+            # For manual runs, use the input tag
+            VERSION=${{ github.event.inputs.tag }}
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building with tag: $VERSION"
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # Production release: tag with version AND latest
+      - name: Build and push (release)
+        if: github.event_name == 'release'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+            ${{ env.DOCKER_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Branch/manual push: only tag with branch name (no latest)
+      - name: Build and push (branch/manual)
+        if: github.event_name != 'release'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
