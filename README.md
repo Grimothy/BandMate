@@ -1,3 +1,6 @@
+<img width="248" height="248" alt="image" src="https://github.com/user-attachments/assets/6b2d886d-a530-4315-8e68-dc4671a8fe42" />
+
+
 # 🎸 BandMate - Your Band's New Digital Studio
 Hey there, music makers! Welcome to BandMate  - the collaboration platform that's about to make your band's creative workflow smoother than a jazz bassline. 🎵
 
