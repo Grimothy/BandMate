@@ -24,10 +24,11 @@ import { config } from '../config/env';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Cookie options
+// Cookie options - only use secure cookies when APP_URL is HTTPS
+const isHttps = config.email.appUrl.startsWith('https://');
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: isHttps,
   sameSite: 'lax' as const,
   path: '/',
 };

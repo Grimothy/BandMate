@@ -68,6 +68,50 @@ router.get('/meta/hierarchy', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get storage usage for the current user
+// IMPORTANT: This route MUST be defined before /:id to avoid "storage" being treated as an id
+router.get('/storage', async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+
+    // Get total storage used by user
+    const totalResult = await prisma.managedFile.aggregate({
+      where: { uploadedById: user.id },
+      _sum: { fileSize: true },
+    });
+
+    // Get storage breakdown by file type
+    const byTypeResult = await prisma.managedFile.groupBy({
+      by: ['type'],
+      where: { uploadedById: user.id },
+      _sum: { fileSize: true },
+    });
+
+    const breakdown: Record<string, number> = {
+      CUT: 0,
+      STEM: 0,
+    };
+
+    byTypeResult.forEach(item => {
+      breakdown[item.type] = item._sum.fileSize || 0;
+    });
+
+    // Get file count
+    const fileCount = await prisma.managedFile.count({
+      where: { uploadedById: user.id },
+    });
+
+    res.json({
+      totalUsed: totalResult._sum.fileSize || 0,
+      byType: breakdown,
+      fileCount,
+    });
+  } catch (error) {
+    console.error('Get storage error:', error);
+    res.status(500).json({ error: 'Failed to get storage info' });
+  }
+});
+
 // Helper to check project access via cut
 async function checkCutAccess(userId: string, userRole: string, cutId: string): Promise<boolean> {
   if (userRole === 'ADMIN') return true;

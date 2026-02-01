@@ -73,7 +73,7 @@ export interface AudioFile {
   type?: 'CUT' | 'STEM';
   cutId: string;
   uploadedById: string;
-  uploadedBy?: Pick<User, 'id' | 'name'>;
+  uploadedBy?: Pick<User, 'id' | 'name' | 'avatarUrl'>;
   createdAt: string;
 }
 
@@ -85,7 +85,7 @@ export interface Comment {
   cutId: string;
   userId: string;
   parentId: string | null;
-  user: Pick<User, 'id' | 'name'>;
+  user: Pick<User, 'id' | 'name' | 'avatarUrl'>;
   managedFile: {  // Changed from audioFile
     id: string;
     name: string | null;  // Changed from label
@@ -120,7 +120,7 @@ export interface ManagedFile {
   shareToken?: string | null;
   cutId: string;
   uploadedById: string;
-  uploadedBy?: Pick<User, 'id' | 'name'>;
+  uploadedBy?: Pick<User, 'id' | 'name' | 'avatarUrl'>;
   cut?: {
     id: string;
     name: string;

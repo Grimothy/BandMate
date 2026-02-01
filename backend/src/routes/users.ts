@@ -20,6 +20,7 @@ router.get('/', async (_req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -43,6 +44,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
         updatedAt: true,
         projects: {
@@ -101,6 +103,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
@@ -154,6 +157,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
         updatedAt: true,
       },

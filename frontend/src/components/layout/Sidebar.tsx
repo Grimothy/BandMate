@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { StorageDisplay } from './StorageDisplay';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-surface border-r border-border z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-surface border-r border-border z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 flex flex-col ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -158,6 +159,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </>
           )}
         </nav>
+
+        {/* Storage Display - at bottom of sidebar */}
+        <StorageDisplay />
       </aside>
     </>
   );

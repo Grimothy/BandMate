@@ -127,24 +127,24 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
           where: { type: 'CUT' }, // Only audio files
           include: {
             uploadedBy: {
-              select: { id: true, name: true },
+              select: { id: true, name: true, avatarUrl: true },
             },
           },
           orderBy: { createdAt: 'asc' },
         },
         comments: {
           where: { parentId: null }, // Only fetch top-level comments
-          include: {
-            user: {
-              select: { id: true, name: true },
-            },
-            managedFile: {
+      include: {
+        user: {
+          select: { id: true, name: true, avatarUrl: true },
+        },
+        managedFile: {
               select: { id: true, name: true, originalName: true },
             },
             replies: {
               include: {
                 user: {
-                  select: { id: true, name: true },
+                  select: { id: true, name: true, avatarUrl: true },
                 },
                 managedFile: {
                   select: { id: true, name: true, originalName: true },
@@ -449,7 +449,7 @@ router.post(
         },
         include: {
           uploadedBy: {
-            select: { id: true, name: true },
+            select: { id: true, name: true, avatarUrl: true },
           },
         },
       });
@@ -494,7 +494,7 @@ router.patch('/:cutId/audio/:audioId', async (req: AuthRequest, res: Response) =
       data: { name: label || null },
       include: {
         uploadedBy: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, avatarUrl: true },
         },
       },
     });

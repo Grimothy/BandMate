@@ -57,11 +57,20 @@ export function Header({ onMenuClick }: HeaderProps) {
           onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-light transition-colors"
         >
-          <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
-            <span className="text-primary font-medium">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </span>
-          </div>
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="w-8 h-8 rounded-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+              <span className="text-primary font-medium">
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
           <span className="text-sm font-medium text-text hidden sm:block">{user?.name}</span>
           <svg
             className={`w-4 h-4 text-muted transition-transform ${showDropdown ? 'rotate-180' : ''}`}

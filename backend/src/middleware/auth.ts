@@ -10,6 +10,7 @@ export interface AuthRequest extends Request {
     email: string;
     role: string;
     name: string;
+    avatarUrl: string | null;
   };
 }
 
@@ -43,7 +44,7 @@ export async function authMiddleware(
     // Fetch user from database to ensure they still exist
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, role: true, name: true },
+      select: { id: true, email: true, role: true, name: true, avatarUrl: true },
     });
 
     if (!user) {

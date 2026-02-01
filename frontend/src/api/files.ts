@@ -101,6 +101,20 @@ export async function getFileHierarchy(): Promise<FileHierarchy[]> {
   return response.data;
 }
 
+export interface UserStorage {
+  totalUsed: number;
+  byType: {
+    CUT: number;
+    STEM: number;
+  };
+  fileCount: number;
+}
+
+export async function getUserStorage(): Promise<UserStorage> {
+  const response = await api.get<UserStorage>('/files/storage');
+  return response.data;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;

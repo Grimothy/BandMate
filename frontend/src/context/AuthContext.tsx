@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User, ManagedFile } from '../types';
 import { login as apiLogin, logout as apiLogout, getCurrentUser } from '../api/auth';
+import { getUserStorage, UserStorage } from '../api/files';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  /** User's storage usage */
+  storage: UserStorage | null;
+  /** Refresh storage usage */
+  refreshStorage: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -19,18 +24,26 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [storage, setStorage] = useState<UserStorage | null>(null);
+
+  const refreshStorage = useCallback(async () => {
+    try {
+      const storageData = await getUserStorage();
+      setStorage(storageData);
+    } catch (error) {
+      console.error('Failed to fetch storage:', error);
+    }
+  }, []);
 
   const refreshUser = useCallback(async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) {
-        setUser(null);
-        return;
-      }
+      // Try to get current user - cookies are sent automatically
+      // Don't check localStorage since OAuth uses httpOnly cookies
       const userData = await getCurrentUser();
       setUser(userData);
     } catch {
       setUser(null);
+      setStorage(null);
       localStorage.removeItem('accessToken');
     }
   }, []);
@@ -44,6 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, [refreshUser]);
 
+  // Fetch storage after user is authenticated
+  useEffect(() => {
+    if (user) {
+      refreshStorage();
+    }
+  }, [user, refreshStorage]);
+
   const login = async (email: string, password: string) => {
     const response = await apiLogin(email, password);
     setUser(response.user);
@@ -52,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await apiLogout();
     setUser(null);
+    setStorage(null);
   };
 
   const canModifyFile = useCallback((file: ManagedFile | { uploadedById: string }) => {
@@ -68,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     refreshUser,
+    storage,
+    refreshStorage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

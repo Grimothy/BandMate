@@ -62,6 +62,28 @@ interface CommentItemProps {
   depth: number;
 }
 
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const getColorFromId = (id: string) => {
+  const colors = [
+    'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 
+    'bg-purple-500', 'bg-pink-500', 'bg-indigo-500',
+    'bg-red-500', 'bg-teal-500'
+  ];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 function CommentItem({
   comment,
   cut,
@@ -139,7 +161,23 @@ function CommentItem({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-text text-sm">{comment.user.name}</span>
+            <div className="flex items-center gap-2">
+              {comment.user.avatarUrl ? (
+                <img
+                  src={comment.user.avatarUrl}
+                  alt={comment.user.name}
+                  className="w-5 h-5 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-medium ${getColorFromId(comment.user.id)}`}
+                >
+                  {getInitials(comment.user.name)}
+                </div>
+              )}
+              <span className="font-medium text-text text-sm">{comment.user.name}</span>
+            </div>
             {!isReply && (
               <>
                 <span className="text-xs text-muted">on</span>
@@ -800,9 +838,30 @@ export function CutDetail() {
                           </span>
                         </div>
                       )}
-                      <p className="text-sm text-muted mt-1">
-                        {audio.originalName} • Uploaded by {audio.uploadedBy?.name}
-                      </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <p className="text-sm text-muted">
+                          {audio.originalName} • Uploaded by
+                        </p>
+                        {audio.uploadedBy && (
+                          <div className="flex items-center gap-1.5 ml-1">
+                            {audio.uploadedBy.avatarUrl ? (
+                              <img
+                                src={audio.uploadedBy.avatarUrl}
+                                alt={audio.uploadedBy.name}
+                                className="w-4 h-4 rounded-full object-cover"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div
+                                className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-medium ${getColorFromId(audio.uploadedBy.id)}`}
+                              >
+                                {getInitials(audio.uploadedBy.name)}
+                              </div>
+                            )}
+                            <span className="text-sm text-muted">{audio.uploadedBy.name}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteAudio(audio.id); }}
