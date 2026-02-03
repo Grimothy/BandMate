@@ -224,11 +224,10 @@ export function AudioPlayer({
 
   // Cleanup: Pause audio when component unmounts
   useEffect(() => {
-    const audio = audioRef.current;
     return () => {
-      if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
       }
     };
   }, []);
