@@ -222,6 +222,17 @@ export function AudioPlayer({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Cleanup: Pause audio when component unmounts
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    };
+  }, []);
+
   const togglePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
