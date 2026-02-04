@@ -24,6 +24,7 @@ model User {
   managedFiles  ManagedFile[]
   notifications Notification[]
   invitations   Invitation[]
+  activities    Activity[]
 
   @@index([authProvider, providerId])
 }
@@ -36,8 +37,9 @@ model Project {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members ProjectMember[]
-  vibes   Vibe[]
+  members    ProjectMember[]
+  vibes      Vibe[]
+  activities Activity[]
 }
 
 model ProjectMember {
@@ -169,4 +171,20 @@ model Invitation {
   createdAt   DateTime  @default(now())
 
   invitedBy   User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id          String   @id @default(uuid())
+  type        String   // "file_uploaded", "cut_created", "vibe_created", "member_added", "comment_added"
+  userId      String   // Actor who performed the action
+  projectId   String   // Project where activity occurred
+  metadata    String?  // JSON string with additional data (file name, cut name, etc.)
+  resourceLink String? // Link to the resource (e.g., "/projects/slug/vibes/slug/cuts/slug")
+  createdAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([userId])
 }

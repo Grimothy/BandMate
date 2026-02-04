@@ -130,3 +130,17 @@ export function isUserOnline(userId: string): boolean {
 export function getOnlineUserCount(): number {
   return userSockets.size;
 }
+
+/**
+ * Emit an event to all members of a project
+ * Note: This requires project membership to be checked
+ */
+export function emitToProject(projectId: string, event: string, data: unknown): void {
+  if (!io) {
+    console.warn('[Socket] Cannot emit - Socket.io not initialized');
+    return;
+  }
+  
+  io.to(`project_${projectId}`).emit(event, data);
+  console.log(`[Socket] Emitted ${event} to project ${projectId}`);
+}

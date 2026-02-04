@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { uploadImage, deleteFile } from '../services/upload';
 import { createVibeFolder, deleteVibeFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
+import { createActivity } from '../services/activities';
 import path from 'path';
 
 const router = Router();
@@ -179,6 +180,18 @@ router.post('/project/:projectId', async (req: AuthRequest, res: Response) => {
     } catch (e) {
       console.error('Failed to create vibe folder:', e);
     }
+
+    // Create activity entry
+    await createActivity({
+      type: 'vibe_created',
+      userId: user.id,
+      projectId: project.id,
+      metadata: {
+        vibeName: name,
+        projectName: project.name,
+      },
+      resourceLink: `/projects/${project.slug}/vibes/${slug}`,
+    });
 
     res.status(201).json(vibe);
   } catch (error) {

@@ -8,6 +8,7 @@ import fileRoutes from './files';
 import publicRoutes from './public';
 import notificationRoutes from './notifications';
 import invitationRoutes from './invitations';
+import activityRoutes from './activities';
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use('/cuts', cutRoutes);
 router.use('/files', fileRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/invitations', invitationRoutes);
+router.use('/activities', activityRoutes);
 
 export default router;

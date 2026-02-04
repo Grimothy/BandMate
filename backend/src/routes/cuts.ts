@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, getCutAudioFilePath } from '../services/upload';
 import { createCutFolder, deleteCutFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
+import { createActivity } from '../services/activities';
 import path from 'path';
 
 const router = Router();
@@ -246,6 +247,27 @@ router.post('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
       await createCutFolder(vibe.project.slug, vibe.slug, slug);
     } catch (e) {
       console.error('Failed to create cut folder:', e);
+    }
+
+    // Get project info for activity
+    const project = await prisma.project.findUnique({
+      where: { id: vibe.projectId },
+      select: { id: true, name: true, slug: true },
+    });
+
+    if (project) {
+      // Create activity entry
+      await createActivity({
+        type: 'cut_created',
+        userId: user.id,
+        projectId: project.id,
+        metadata: {
+          cutName: name,
+          vibeName: vibe.name,
+          projectName: project.name,
+        },
+        resourceLink: `/projects/${project.slug}/vibes/${vibe.slug}/cuts/${slug}`,
+      });
     }
 
     res.status(201).json(cut);

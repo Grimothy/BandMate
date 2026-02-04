@@ -6,6 +6,7 @@ import { uploadImage, deleteFile } from '../services/upload';
 import { createProjectFolder, deleteProjectFolder } from '../services/folders';
 import { generateUniqueSlug } from '../utils/slug';
 import { createNotification } from '../services/notifications';
+import { createActivity } from '../services/activities';
 import path from 'path';
 
 const router = Router();
@@ -350,6 +351,18 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
       message: `You have been added to the project "${project.name}".`,
       resourceLink: `/projects/${project.slug}`,
       sendEmail: true, // Always send email for project invites
+    });
+
+    // Create activity entry
+    await createActivity({
+      type: 'member_added',
+      userId: req.user!.id, // The admin who added the member
+      projectId: project.id,
+      metadata: {
+        memberName: member.user.name,
+        projectName: project.name,
+      },
+      resourceLink: `/projects/${project.slug}`,
     });
 
     res.status(201).json(member);

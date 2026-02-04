@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { deleteFile, uploadCutAudio, uploadCutStem, getCutAudioFilePath, getCutStemFilePath } from '../services/upload';
 import { createBulkNotifications } from '../services/notifications';
+import { createActivity } from '../services/activities';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -462,6 +463,20 @@ router.post(
           resourceLink: `/projects/${cut.vibe.project.slug}/vibes/${cut.vibe.slug}/cuts/${cut.slug}`,
         });
       }
+
+      // Create activity entry
+      await createActivity({
+        type: 'file_uploaded',
+        userId: user.id,
+        projectId: cut.vibe.projectId,
+        metadata: {
+          fileName: req.file.originalname,
+          cutName: cut.name,
+          vibeName: cut.vibe.name,
+          projectName: cut.vibe.project.name,
+        },
+        resourceLink: `/projects/${cut.vibe.project.slug}/vibes/${cut.vibe.slug}/cuts/${cut.slug}`,
+      });
 
       res.status(201).json(managedFile);
     } catch (error) {
