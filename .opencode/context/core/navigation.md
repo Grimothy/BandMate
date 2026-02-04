@@ -10,6 +10,7 @@
 | Testing | standards/test-coverage.md | Testing frameworks and coverage | code-quality.md |
 | Code Review | standards/workflows/code-review.md | PR review process | test-coverage.md, documentation.md |
 | Task Delegation | standards/workflows/task-delegation.md | Project management workflow | code-review.md |
+| Activity Notifications | standards/workflows/activity-notifications.md | When to track activities & notify users | code-quality.md |
 
 ## Loading Strategy
 
@@ -24,9 +25,11 @@ code-quality.md
 ├── ui-components.md
 ├── documentation.md
 ├── test-coverage.md
+├── activity-notifications.md
 └── workflows/
     ├── code-review.md
-    └── task-delegation.md
+    ├── task-delegation.md
+    └── activity-notifications.md
 ```
 
 ## Related Context Files

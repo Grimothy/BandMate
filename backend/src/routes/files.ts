@@ -695,8 +695,35 @@ router.post('/:id/share', async (req: AuthRequest, res: Response) => {
         uploadedBy: {
           select: { id: true, name: true },
         },
+        cut: {
+          include: {
+            vibe: {
+              include: {
+                project: {
+                  select: { id: true, name: true, slug: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
+
+    // Create activity entry for file sharing
+    if (updated.cut) {
+      await createActivity({
+        type: 'file_shared',
+        userId: user.id,
+        projectId: updated.cut.vibe.projectId,
+        metadata: {
+          fileName: updated.name || updated.originalName,
+          cutName: updated.cut.name,
+          vibeName: updated.cut.vibe.name,
+          projectName: updated.cut.vibe.project.name,
+        },
+        resourceLink: `/shared/${shareToken}`,
+      });
+    }
 
     res.json(updated);
   } catch (error) {

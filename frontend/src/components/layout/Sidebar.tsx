@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { StorageDisplay } from './StorageDisplay';
-import { ActivityFeed } from './ActivityFeed';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -117,9 +116,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Activity Feed */}
-        <ActivityFeed />
-
         {/* Navigation */}
         <nav className="p-4 space-y-1">
           {navItems.map((item) => (
@@ -134,7 +130,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               }`}
             >
               {renderIcon(item.icon)}
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium flex-1">{item.label}</span>
             </Link>
           ))}
 

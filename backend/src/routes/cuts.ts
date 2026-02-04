@@ -654,6 +654,36 @@ router.post('/:id/comments', async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Get cut with project info for activity
+    const cutWithProject = await prisma.cut.findUnique({
+      where: { id: cutId },
+      include: {
+        vibe: {
+          include: {
+            project: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Create activity entry for comment
+    if (cutWithProject) {
+      await createActivity({
+        type: 'comment_added',
+        userId: user.id,
+        projectId: cutWithProject.vibe.projectId,
+        metadata: {
+          cutName: cutWithProject.name,
+          vibeName: cutWithProject.vibe.name,
+          projectName: cutWithProject.vibe.project.name,
+          isReply: !!parentId,
+        },
+        resourceLink: `/projects/${cutWithProject.vibe.project.slug}/vibes/${cutWithProject.vibe.slug}/cuts/${cutWithProject.slug}`,
+      });
+    }
+
     res.status(201).json(comment);
   } catch (error) {
     console.error('Create comment error:', error);
@@ -830,6 +860,35 @@ router.put('/:id/lyrics', async (req: AuthRequest, res: Response) => {
       data: { lyrics: JSON.stringify(lyrics) },
       select: { lyrics: true },
     });
+
+    // Get cut with project info for activity
+    const cutWithProject = await prisma.cut.findUnique({
+      where: { id: cutId },
+      include: {
+        vibe: {
+          include: {
+            project: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Create activity entry for lyrics update
+    if (cutWithProject) {
+      await createActivity({
+        type: 'lyrics_updated',
+        userId: user.id,
+        projectId: cutWithProject.vibe.projectId,
+        metadata: {
+          cutName: cutWithProject.name,
+          vibeName: cutWithProject.vibe.name,
+          projectName: cutWithProject.vibe.project.name,
+        },
+        resourceLink: `/projects/${cutWithProject.vibe.project.slug}/vibes/${cutWithProject.vibe.slug}/cuts/${cutWithProject.slug}`,
+      });
+    }
 
     res.json(updated.lyrics ? JSON.parse(updated.lyrics) : []);
   } catch (error) {

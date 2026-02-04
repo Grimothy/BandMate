@@ -14,6 +14,7 @@ import { Waveform, WaveformHandle } from '../../components/audio/Waveform';
 import { CutFileExplorer } from '../../components/files/CutFileExplorer';
 import { LyricsEditor } from '../../components/lyrics/LyricsEditor';
 import { ActionMenu } from '../../components/ui/ActionMenu';
+import { CutManifest } from '../../components/cuts/CutManifest';
 
 // Icons for ActionMenu
 const InfoIcon = () => (
@@ -35,7 +36,7 @@ const DeleteIcon = () => (
 );
 
 // Tab type definition
-type CutTab = 'audio' | 'files' | 'lyrics';
+type CutTab = 'manifest' | 'audio' | 'files' | 'lyrics';
 
 interface CommentItemProps {
   comment: Comment;
@@ -336,7 +337,7 @@ export function CutDetail() {
   const [cut, setCut] = useState<Cut | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<CutTab>('audio');
+  const [activeTab, setActiveTab] = useState<CutTab>('manifest');
   const [fileExplorerKey, setFileExplorerKey] = useState(0);
   const [commentText, setCommentText] = useState('');
   const [commentTimestamp, setCommentTimestamp] = useState(0);
@@ -742,6 +743,7 @@ export function CutDetail() {
       {/* Tabs */}
       <Tabs
         tabs={[
+          { id: 'manifest', label: 'Manifest' },
           { id: 'audio', label: 'Audio', badge: cut.managedFiles?.length || 0 },
           { id: 'files', label: 'Files' },
           { id: 'lyrics', label: 'Lyrics' },
@@ -749,6 +751,11 @@ export function CutDetail() {
         activeTab={activeTab}
         onChange={(tabId) => setActiveTab(tabId as CutTab)}
       />
+
+      {/* Manifest Tab Content */}
+      <TabPanel id="manifest" activeTab={activeTab}>
+        <CutManifest cutSlug={cut.slug} />
+      </TabPanel>
 
       {/* Audio Tab Content */}
       <TabPanel id="audio" activeTab={activeTab} className="space-y-6">

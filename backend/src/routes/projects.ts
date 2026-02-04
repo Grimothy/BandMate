@@ -138,9 +138,22 @@ router.post('/', adminMiddleware, async (req: AuthRequest, res: Response) => {
       data: {
         name,
         slug,
+        // Add the creator as a member automatically
+        members: {
+          create: {
+            userId: req.user!.id,
+            canCreateVibes: true,
+          },
+        },
       },
       include: {
-        members: true,
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
         vibes: true,
       },
     });
@@ -151,6 +164,17 @@ router.post('/', adminMiddleware, async (req: AuthRequest, res: Response) => {
     } catch (e) {
       console.error('Failed to create project folder:', e);
     }
+
+    // Create activity entry for project creation
+    await createActivity({
+      type: 'project_created',
+      userId: req.user!.id,
+      projectId: project.id,
+      metadata: {
+        projectName: name,
+      },
+      resourceLink: `/projects/${slug}`,
+    });
 
     res.status(201).json(project);
   } catch (error) {

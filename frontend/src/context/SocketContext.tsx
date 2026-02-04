@@ -2,6 +2,13 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
+import { 
+  Activity, 
+  getActivities, 
+  getUnreadActivityCount, 
+  markActivityAsRead as apiMarkActivityAsRead,
+  markAllActivitiesAsRead as apiMarkAllActivitiesAsRead
+} from '../api/activities';
 
 export interface Notification {
   id: string;
@@ -16,11 +23,19 @@ export interface Notification {
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
+  // Notifications
   notifications: Notification[];
   unreadCount: number;
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   fetchNotifications: () => Promise<void>;
+  // Activities
+  activities: Activity[];
+  unreadActivityCount: number;
+  isLoadingActivities: boolean;
+  fetchActivities: () => Promise<void>;
+  markActivityAsRead: (activityId: string) => Promise<void>;
+  markAllActivitiesAsRead: () => Promise<void>;
 }
 
 const SocketContext = createContext<SocketContextType | null>(null);
@@ -42,8 +57,15 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  
+  // Notification state
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Activity state
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [unreadActivityCount, setUnreadActivityCount] = useState(0);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(true);
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
@@ -64,6 +86,34 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
+    }
+  }, [isAuthenticated]);
+
+  // Fetch activities from API
+  const fetchActivities = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      setIsLoadingActivities(true);
+      const result = await getActivities({ limit: 50 });
+      setActivities(result.activities);
+      setUnreadActivityCount(result.unreadCount);
+    } catch (error) {
+      console.error('Failed to fetch activities:', error);
+    } finally {
+      setIsLoadingActivities(false);
+    }
+  }, [isAuthenticated]);
+
+  // Fetch only unread activity count (for badge updates)
+  const fetchUnreadActivityCount = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const count = await getUnreadActivityCount();
+      setUnreadActivityCount(count);
+    } catch (error) {
+      console.error('Failed to fetch unread activity count:', error);
     }
   }, [isAuthenticated]);
 
@@ -111,6 +161,32 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Mark a single activity as read
+  const markActivityAsRead = useCallback(async (activityId: string) => {
+    try {
+      await apiMarkActivityAsRead(activityId);
+      setActivities((prev) =>
+        prev.map((a) =>
+          a.id === activityId ? { ...a, isRead: true } : a
+        )
+      );
+      setUnreadActivityCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Failed to mark activity as read:', error);
+    }
+  }, []);
+
+  // Mark all activities as read
+  const markAllActivitiesAsRead = useCallback(async () => {
+    try {
+      await apiMarkAllActivitiesAsRead();
+      setActivities((prev) => prev.map((a) => ({ ...a, isRead: true })));
+      setUnreadActivityCount(0);
+    } catch (error) {
+      console.error('Failed to mark all activities as read:', error);
+    }
+  }, []);
+
   // Initialize socket connection when authenticated
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -120,6 +196,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setSocket(null);
         setIsConnected(false);
       }
+      // Clear state
+      setActivities([]);
+      setUnreadActivityCount(0);
+      setIsLoadingActivities(true);
       return;
     }
 
@@ -189,10 +269,32 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Listen for real-time activities
+    newSocket.on('activity', (activity: Activity) => {
+      console.log('[Socket] Received activity:', activity);
+
+      // Prepend new activity to the list
+      setActivities((prev) => {
+        // Avoid duplicates
+        if (prev.some(a => a.id === activity.id)) {
+          return prev;
+        }
+        // Mark as read if it's from the current user, unread if from others
+        const isOwnAction = activity.userId === user.id;
+        return [{ ...activity, isRead: isOwnAction }, ...prev.slice(0, 49)];
+      });
+      
+      // Only increment unread count if it's from another user
+      if (activity.userId !== user.id) {
+        setUnreadActivityCount((prev) => prev + 1);
+      }
+    });
+
     setSocket(newSocket);
 
-    // Fetch existing notifications
+    // Fetch existing notifications and activities
     fetchNotifications();
+    fetchActivities();
 
     // Cleanup on unmount
     return () => {
@@ -201,14 +303,33 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id]);
 
+  // Periodically refresh unread count (backup for missed socket events)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      fetchUnreadActivityCount();
+    }, 60000); // Every minute
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, fetchUnreadActivityCount]);
+
   const value: SocketContextType = {
     socket,
     isConnected,
+    // Notifications
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
     fetchNotifications,
+    // Activities
+    activities,
+    unreadActivityCount,
+    isLoadingActivities,
+    fetchActivities,
+    markActivityAsRead,
+    markAllActivitiesAsRead,
   };
 
   return (

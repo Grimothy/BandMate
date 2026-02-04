@@ -12,6 +12,7 @@ import { CutDetail } from './pages/cuts/CutDetail';
 import { FileExplorer } from './pages/files/FileExplorer';
 import { Users } from './pages/admin/Users';
 import { SharedFile } from './pages/shared/SharedFile';
+import { ActivityFeedPage } from './pages/activity/ActivityFeedPage';
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
             {/* Protected routes */}
             <Route element={<Layout />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/activity" element={<ActivityFeedPage />} />
               <Route path="/projects" element={<ProjectList />} />
               <Route path="/projects/:id" element={<ProjectDetail />} />
               <Route path="/cuts/:id" element={<CutDetail />} />

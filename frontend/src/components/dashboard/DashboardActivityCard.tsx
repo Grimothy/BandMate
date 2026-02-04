@@ -4,7 +4,7 @@ import {
   FolderPlus, 
   Music, 
   UserPlus, 
-  MessageSquare,
+  MessageSquare, 
   FolderOpen,
   FileText,
   Share2,
@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { Activity, ActivityType } from '../../api/activities';
 import { useSocket } from '../../context/SocketContext';
+import { Card } from '../ui/Card';
+import { Skeleton } from '../ui/Skeleton';
 
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -74,33 +76,23 @@ function getActivityDescription(activity: Activity): string {
   }
 }
 
-interface ActivityItemProps {
+interface DashboardActivityItemProps {
   activity: Activity;
-  onMarkAsRead: (id: string) => void;
+  onClick: () => void;
 }
 
-function ActivityItem({ activity, onMarkAsRead }: ActivityItemProps) {
-  const navigate = useNavigate();
+function DashboardActivityItem({ activity, onClick }: DashboardActivityItemProps) {
   const description = getActivityDescription(activity);
   const icon = getActivityIcon(activity.type);
 
-  const handleClick = () => {
-    if (!activity.isRead) {
-      onMarkAsRead(activity.id);
-    }
-    if (activity.resourceLink) {
-      navigate(activity.resourceLink);
-    }
-  };
-
   return (
     <button
-      onClick={handleClick}
+      onClick={onClick}
       className={`w-full flex items-start gap-2 p-2 rounded-md text-left transition-colors hover:bg-surface-light group ${
         !activity.isRead ? 'bg-primary/5' : ''
       }`}
     >
-      {/* Unread indicator */}
+      {/* Unread dot */}
       {!activity.isRead && (
         <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
       )}
@@ -124,64 +116,98 @@ function ActivityItem({ activity, onMarkAsRead }: ActivityItemProps) {
   );
 }
 
-export function ActivityFeed() {
-  const { activities, unreadActivityCount, markActivityAsRead } = useSocket();
+function ActivitySkeleton() {
+  return (
+    <div className="flex items-start gap-2 p-2">
+      <Skeleton className="w-7 h-7 rounded flex-shrink-0" />
+      <div className="flex-1 space-y-1">
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-2 w-1/3" />
+      </div>
+    </div>
+  );
+}
 
-  // Show first 5 activities in sidebar preview
+export function DashboardActivityCard() {
+  const navigate = useNavigate();
+  const { 
+    activities, 
+    unreadActivityCount, 
+    isLoadingActivities,
+    markActivityAsRead 
+  } = useSocket();
+
+  const handleActivityClick = async (activity: Activity) => {
+    if (!activity.isRead) {
+      await markActivityAsRead(activity.id);
+    }
+    if (activity.resourceLink) {
+      navigate(activity.resourceLink);
+    }
+  };
+
+  // Get first 5 activities for dashboard
   const displayActivities = activities.slice(0, 5);
-  const isLoading = activities.length === 0 && unreadActivityCount === 0;
 
   return (
-    <div className="px-4 py-3 border-b border-border">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
-          Recent Activity
-        </h3>
-        {unreadActivityCount > 0 && (
-          <span className="px-1.5 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
-            {unreadActivityCount} new
-          </span>
+    <Card className="h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-text">Recent Activity</h3>
+          {unreadActivityCount > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-primary/10 text-primary rounded-full">
+              {unreadActivityCount} new
+            </span>
+          )}
+        </div>
+        <Link
+          to="/activity"
+          className="text-xs text-primary hover:underline flex items-center gap-1"
+        >
+          View all
+          <ArrowRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {/* Activity list */}
+      <div className="space-y-0.5 -mx-2">
+        {isLoadingActivities ? (
+          // Loading skeletons
+          <>
+            <ActivitySkeleton />
+            <ActivitySkeleton />
+            <ActivitySkeleton />
+          </>
+        ) : displayActivities.length === 0 ? (
+          // Empty state
+          <div className="py-6 text-center">
+            <Music className="w-8 h-8 text-muted mx-auto mb-2" />
+            <p className="text-xs text-muted">No recent activity</p>
+          </div>
+        ) : (
+          // Activity items
+          displayActivities.map((activity) => (
+            <DashboardActivityItem
+              key={activity.id}
+              activity={activity}
+              onClick={() => handleActivityClick(activity)}
+            />
+          ))
         )}
       </div>
-      
-      {isLoading ? (
-        <div className="space-y-2">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-start gap-2 p-2">
-              <div className="w-7 h-7 rounded bg-surface-light animate-pulse" />
-              <div className="flex-1 space-y-1">
-                <div className="h-3 bg-surface-light rounded animate-pulse w-3/4" />
-                <div className="h-2 bg-surface-light rounded animate-pulse w-1/2" />
-              </div>
-            </div>
-          ))}
+
+      {/* Footer - show only if there are more activities */}
+      {activities.length > 5 && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <Link
+            to="/activity"
+            className="block w-full text-center text-xs text-muted hover:text-text transition-colors py-1"
+          >
+            + {activities.length - 5} more activities
+          </Link>
         </div>
-      ) : displayActivities.length === 0 ? (
-        <p className="text-xs text-muted py-2">No recent activity</p>
-      ) : (
-        <>
-          <div className="space-y-0.5 max-h-64 overflow-y-auto custom-scrollbar -mx-2">
-            {displayActivities.map((activity) => (
-              <ActivityItem 
-                key={activity.id} 
-                activity={activity}
-                onMarkAsRead={markActivityAsRead}
-              />
-            ))}
-          </div>
-          
-          {/* View all link */}
-          {activities.length > 5 && (
-            <Link
-              to="/activity"
-              className="flex items-center justify-center gap-1 mt-2 py-1.5 text-xs text-muted hover:text-primary transition-colors"
-            >
-              View all activity
-              <ArrowRight className="w-3 h-3" />
-            </Link>
-          )}
-        </>
       )}
-    </div>
+    </Card>
   );
 }

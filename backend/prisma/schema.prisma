@@ -175,7 +175,7 @@ model Invitation {
 
 model Activity {
   id          String   @id @default(uuid())
-  type        String   // "file_uploaded", "cut_created", "vibe_created", "member_added", "comment_added"
+  type        String   // "file_uploaded", "cut_created", "vibe_created", "member_added", "comment_added", "project_created", "lyrics_updated", "file_shared"
   userId      String   // Actor who performed the action
   projectId   String   // Project where activity occurred
   metadata    String?  // JSON string with additional data (file name, cut name, etc.)
@@ -184,7 +184,22 @@ model Activity {
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reads   ActivityRead[]
 
   @@index([projectId, createdAt])
   @@index([userId])
+}
+
+// Track which activities have been read by which users
+model ActivityRead {
+  id         String   @id @default(uuid())
+  activityId String
+  userId     String
+  readAt     DateTime @default(now())
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([userId])
+  @@index([activityId])
 }

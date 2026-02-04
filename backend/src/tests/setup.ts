@@ -4,7 +4,9 @@ import { beforeAll, afterAll } from 'vitest';
 const prisma = new PrismaClient();
 
 beforeAll(async () => {
-  // Clean database before tests
+  // Clean database before tests (order matters due to foreign keys)
+  await prisma.activityRead.deleteMany();
+  await prisma.activity.deleteMany();
   await prisma.invitation.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.comment.deleteMany();
