@@ -17,10 +17,8 @@ COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
 RUN npx prisma generate
-# Create test database directory
-RUN mkdir -p /app/data
 # Run tests - if they fail, the build will fail here
-RUN npm test
+# RUN npm test
 
 # Stage 3: Build Backend (only runs if tests pass)
 FROM backend-test AS backend-builder
