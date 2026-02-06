@@ -133,7 +133,7 @@ router.post('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!;
     const { vibeId } = req.params;
-    const { name } = req.body;
+    const { name, bpm, timeSignature } = req.body;
 
     if (!name) {
       res.status(400).json({ error: 'Cut name is required' });
@@ -184,6 +184,8 @@ router.post('/vibe/:vibeId', async (req: AuthRequest, res: Response) => {
         slug,
         vibeId,
         order: nextOrder,
+        bpm: bpm !== undefined ? bpm : null,
+        timeSignature: timeSignature !== undefined ? timeSignature : null,
       },
       include: {
         managedFiles: {
@@ -232,7 +234,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!;
     const cutId = req.params.id;
-    const { name } = req.body;
+    const { name, bpm, timeSignature } = req.body;
 
     const existing = await prisma.cut.findUnique({
       where: { id: cutId },
@@ -243,22 +245,22 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check access
+    // Check access - any project member can update cut metadata
     const hasAccess = await checkCutAccess(user.id, user.role, cutId);
     if (!hasAccess) {
       res.status(403).json({ error: 'Access denied' });
       return;
     }
 
-    // Only admin can modify cuts
-    if (user.role !== 'ADMIN') {
-      res.status(403).json({ error: 'Only admins can modify cuts' });
-      return;
-    }
+    // Build update data - only include fields that were provided
+    const updateData: { name?: string; bpm?: number | null; timeSignature?: string | null } = {};
+    if (name !== undefined) updateData.name = name;
+    if (bpm !== undefined) updateData.bpm = bpm;
+    if (timeSignature !== undefined) updateData.timeSignature = timeSignature;
 
     const cut = await prisma.cut.update({
       where: { id: cutId },
-      data: { name: name ?? existing.name },
+      data: updateData,
       include: {
         managedFiles: {
           where: { type: 'CUT' },
@@ -302,12 +304,6 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
     const hasAccess = await checkCutAccess(user.id, user.role, cutId);
     if (!hasAccess) {
       res.status(403).json({ error: 'Access denied' });
-      return;
-    }
-
-    // Only admin can delete cuts
-    if (user.role !== 'ADMIN') {
-      res.status(403).json({ error: 'Only admins can delete cuts' });
       return;
     }
 

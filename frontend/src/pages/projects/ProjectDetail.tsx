@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getProject, uploadProjectImage, addProjectMember, removeProjectMember } from '../../api/projects';
 import { createVibe, deleteVibe, updateVibe, uploadVibeImage } from '../../api/vibes';
-import { createCut, deleteCut, reorderCuts } from '../../api/cuts';
+import { createCut, deleteCut, reorderCuts, updateCut } from '../../api/cuts';
 import { getUsers } from '../../api/users';
 import { Project, User } from '../../types';
 import { Button } from '../../components/ui/Button';
@@ -103,13 +103,18 @@ export function ProjectDetail() {
     fetchProject();
   };
 
-  const handleCreateCut = async (vibeId: string, name: string) => {
-    await createCut(vibeId, name);
+  const handleCreateCut = async (vibeId: string, data: { name: string; bpm?: number; timeSignature?: string }) => {
+    await createCut(vibeId, data);
     fetchProject();
   };
 
   const handleDeleteCut = async (cutId: string) => {
     await deleteCut(cutId);
+    fetchProject();
+  };
+
+  const handleUpdateCut = async (cutId: string, data: { name?: string; bpm?: number | null; timeSignature?: string | null }) => {
+    await updateCut(cutId, data);
     fetchProject();
   };
 
@@ -295,6 +300,7 @@ export function ProjectDetail() {
                 vibe={vibe}
                 onCreateCut={handleCreateCut}
                 onDeleteCut={handleDeleteCut}
+                onUpdateCut={handleUpdateCut}
                 onEditVibe={handleUpdateVibe}
                 onDeleteVibe={handleDeleteVibe}
                 onUploadImage={handleUploadVibeImage}

@@ -13,7 +13,7 @@ import { Tabs, TabPanel } from '../../components/ui/Tabs';
 import { Waveform, WaveformHandle } from '../../components/audio/Waveform';
 import { CutFileExplorer } from '../../components/files/CutFileExplorer';
 import { LyricsEditor } from '../../components/lyrics/LyricsEditor';
-import { ActionMenu } from '../../components/ui/ActionMenu';
+import { ActionSheet } from '../../components/ui/ActionMenu';
 import { CutManifest } from '../../components/cuts/CutManifest';
 
 // Icons for ActionMenu
@@ -357,6 +357,8 @@ export function CutDetail() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editCutName, setEditCutName] = useState('');
+  const [editCutBpm, setEditCutBpm] = useState<string>('');
+  const [editCutTimeSignature, setEditCutTimeSignature] = useState<string>('');
   const [isUpdatingCut, setIsUpdatingCut] = useState(false);
   const [isDeletingCut, setIsDeletingCut] = useState(false);
 
@@ -602,6 +604,8 @@ export function CutDetail() {
   const handleOpenEditModal = () => {
     if (cut) {
       setEditCutName(cut.name);
+      setEditCutBpm(cut.bpm?.toString() || '');
+      setEditCutTimeSignature(cut.timeSignature || '');
       setShowEditModal(true);
     }
   };
@@ -611,7 +615,11 @@ export function CutDetail() {
     
     setIsUpdatingCut(true);
     try {
-      await updateCut(id, editCutName);
+      await updateCut(id, {
+        name: editCutName,
+        bpm: editCutBpm ? parseInt(editCutBpm, 10) : null,
+        timeSignature: editCutTimeSignature || null,
+      });
       setShowEditModal(false);
       fetchCut();
     } catch (error) {
@@ -665,22 +673,26 @@ export function CutDetail() {
         <span className="text-muted">{cut.vibe?.name}</span>
         <span className="mx-2">/</span>
         <span className="text-text">{cut.name}</span>
-        <ActionMenu
+        <ActionSheet
           className="ml-1 p-1"
+          title={cut.name}
           items={[
             {
               label: 'View Info',
+              description: 'See cut details and metadata',
               icon: <InfoIcon />,
               onClick: () => setShowInfoModal(true),
             },
             {
               label: 'Edit Details',
+              description: 'Update name, BPM, and time signature',
               icon: <EditIcon />,
               onClick: handleOpenEditModal,
               visible: isAdmin,
             },
             {
               label: 'Delete Cut',
+              description: 'Permanently remove this cut',
               icon: <DeleteIcon />,
               onClick: () => setShowDeleteModal(true),
               variant: 'danger',
@@ -694,6 +706,18 @@ export function CutDetail() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-text">{cut.name}</h1>
+          <div className="flex items-center gap-2 mt-2">
+            {cut.bpm && (
+              <span className="inline-flex items-center px-2 py-1 text-sm font-medium rounded-full bg-primary/20 text-primary">
+                {cut.bpm} BPM
+              </span>
+            )}
+            {cut.timeSignature && (
+              <span className="inline-flex items-center px-2 py-1 text-sm font-medium rounded-full bg-secondary/20 text-secondary-foreground">
+                {cut.timeSignature}
+              </span>
+            )}
+          </div>
           <p className="text-muted mt-1">
             {cut.managedFiles?.length || 0} audio files • {cut.comments?.length || 0} comments
           </p>
@@ -1044,6 +1068,16 @@ export function CutDetail() {
           </div>
           <div className="flex gap-8">
             <div>
+              <label className="block text-sm font-medium text-muted mb-1">BPM</label>
+              <p className="text-text">{cut.bpm || 'Not set'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-muted mb-1">Time Signature</label>
+              <p className="text-text">{cut.timeSignature || 'Not set'}</p>
+            </div>
+          </div>
+          <div className="flex gap-8">
+            <div>
               <label className="block text-sm font-medium text-muted mb-1">Audio Files</label>
               <p className="text-text">{cut.managedFiles?.length || 0}</p>
             </div>
@@ -1083,6 +1117,34 @@ export function CutDetail() {
             value={editCutName}
             onChange={(e) => setEditCutName(e.target.value)}
           />
+          <Input
+            label="BPM (Beats Per Minute)"
+            type="number"
+            placeholder="e.g., 120"
+            value={editCutBpm}
+            onChange={(e) => setEditCutBpm(e.target.value)}
+            min={1}
+            max={999}
+          />
+          <div>
+            <label className="block text-sm font-medium text-text mb-1">
+              Time Signature
+            </label>
+            <select
+              value={editCutTimeSignature}
+              onChange={(e) => setEditCutTimeSignature(e.target.value)}
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="">Select time signature</option>
+              <option value="4/4">4/4 (Common Time)</option>
+              <option value="3/4">3/4 (Waltz)</option>
+              <option value="6/8">6/8</option>
+              <option value="2/4">2/4</option>
+              <option value="5/4">5/4</option>
+              <option value="7/8">7/8</option>
+              <option value="12/8">12/8</option>
+            </select>
+          </div>
         </div>
       </SideSheet>
 

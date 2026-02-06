@@ -48,6 +48,8 @@ export interface Cut {
   slug: string;
   vibeId: string;
   order: number;
+  bpm?: number | null;
+  timeSignature?: string | null;
   createdAt: string;
   updatedAt: string;
   vibe?: Vibe;

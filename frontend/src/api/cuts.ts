@@ -11,13 +11,13 @@ export async function getCut(id: string): Promise<Cut> {
   return response.data;
 }
 
-export async function createCut(vibeId: string, name: string): Promise<Cut> {
-  const response = await api.post<Cut>(`/cuts/vibe/${vibeId}`, { name });
+export async function createCut(vibeId: string, data: { name: string; bpm?: number; timeSignature?: string }): Promise<Cut> {
+  const response = await api.post<Cut>(`/cuts/vibe/${vibeId}`, data);
   return response.data;
 }
 
-export async function updateCut(id: string, name: string): Promise<Cut> {
-  const response = await api.put<Cut>(`/cuts/${id}`, { name });
+export async function updateCut(id: string, data: { name?: string; bpm?: number | null; timeSignature?: string | null }): Promise<Cut> {
+  const response = await api.put<Cut>(`/cuts/${id}`, data);
   return response.data;
 }
 

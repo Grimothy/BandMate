@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 import { Loading } from '../ui/Loading';
 import { SideSheet, ConfirmationModal } from '../ui/Modal';
 import { Input } from '../ui/Input';
-import { ActionMenu } from '../ui/ActionMenu';
+import { ActionSheet } from '../ui/ActionMenu';
 import { AudioPlayer } from '../audio/AudioPlayer';
 
 // Icons
@@ -314,27 +314,32 @@ export function CutFileExplorer({ cutId, vibeName, vibeImage, projectName, proje
               </div>
               
               <div className="w-24 flex items-center justify-end">
-                <ActionMenu
+                <ActionSheet
+                  title={file.name || file.originalName}
                   items={[
                     {
                       label: 'Download',
+                      description: 'Download file to your device',
                       icon: <DownloadIcon />,
                       onClick: () => handleDownload(file),
                     },
                     {
                       label: file.isPublic ? 'Manage Share' : 'Share',
+                      description: file.isPublic ? 'View or revoke share link' : 'Create a share link',
                       icon: <ShareIcon />,
                       onClick: () => handleShare(file),
                       visible: canModifyFile(file),
                     },
                     {
                       label: 'Edit',
+                      description: 'Update file name and details',
                       icon: <EditIcon />,
                       onClick: () => handleEdit(file),
                       visible: canModifyFile(file),
                     },
                     {
                       label: 'Delete',
+                      description: 'Permanently remove this file',
                       icon: <DeleteIcon />,
                       onClick: () => setDeletingFile(file),
                       variant: 'danger',

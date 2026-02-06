@@ -72,14 +72,16 @@ model Vibe {
 }
 
 model Cut {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   // Filesystem-safe, immutable identifier
-  vibeId    String
-  order     Int      @default(0) // For ordering cuts within a vibe
-  lyrics    String?  // JSON string: array of { managedFileId, lines: [{ timestamp, text }] }
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  slug          String   // Filesystem-safe, immutable identifier
+  vibeId        String
+  order         Int      @default(0) // For ordering cuts within a vibe
+  lyrics        String?  // JSON string: array of { managedFileId, lines: [{ timestamp, text }] }
+  bpm           Int?     // Beats per minute (e.g., 120)
+  timeSignature String?  // Time signature (e.g., "4/4", "3/4", "6/8")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   vibe         Vibe          @relation(fields: [vibeId], references: [id], onDelete: Cascade)
   managedFiles ManagedFile[]

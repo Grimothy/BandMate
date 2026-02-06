@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Vibe } from '../../types';
+import { Vibe, Cut } from '../../types';
 import { Card, CardImage } from '../ui/Card';
-import { ActionMenu } from '../ui/ActionMenu';
+import { ActionSheet } from '../ui/ActionMenu';
 import { SideSheet } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -28,12 +28,12 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 interface SortableCutItemProps {
-  cut: any;
+  cut: Cut;
   index: number;
-  onDelete: (cutId: string) => void;
+  onOpenActions: (cut: Cut) => void;
 }
 
-function SortableCutItem({ cut, index, onDelete }: SortableCutItemProps) {
+function SortableCutItem({ cut, index, onOpenActions }: SortableCutItemProps) {
   const {
     attributes,
     listeners,
@@ -81,41 +81,42 @@ function SortableCutItem({ cut, index, onDelete }: SortableCutItemProps) {
             {cut.name}
           </h4>
         </Link>
-        {creator && (
-          <p className="text-xs text-muted truncate">
-            by {creator.name}
-          </p>
-        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          {cut.bpm && (
+            <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
+              {cut.bpm} BPM
+            </span>
+          )}
+          {cut.timeSignature && (
+            <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-secondary/20 text-secondary-foreground">
+              {cut.timeSignature}
+            </span>
+          )}
+          {creator && (
+            <p className="text-xs text-muted truncate">
+              by {creator.name}
+            </p>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        <Link
-          to={`/cuts/${cut.id}`}
-          className="p-1.5 text-muted hover:text-primary transition-colors"
-          title="Open cut"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </Link>
-        <button
-          onClick={() => onDelete(cut.id)}
-          className="p-1.5 text-muted hover:text-error transition-colors"
-          title="Delete cut"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
+      <button
+        onClick={() => onOpenActions(cut)}
+        className="p-2 text-muted hover:text-primary hover:bg-surface-light rounded-lg transition-colors"
+        title="Cut actions"
+      >
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+        </svg>
+      </button>
     </div>
   );
 }
 
 interface VibeCardProps {
   vibe: Vibe;
-  onCreateCut: (vibeId: string, name: string) => Promise<void>;
+  onCreateCut: (vibeId: string, data: { name: string; bpm?: number; timeSignature?: string }) => Promise<void>;
   onDeleteCut: (cutId: string) => Promise<void>;
+  onUpdateCut: (cutId: string, data: { name?: string; bpm?: number | null; timeSignature?: string | null }) => Promise<void>;
   onEditVibe: (vibeId: string, data: { name?: string; theme?: string; notes?: string }) => Promise<void>;
   onDeleteVibe: (vibeId: string) => Promise<void>;
   onUploadImage: (vibeId: string, file: File) => Promise<void>;
@@ -126,6 +127,7 @@ export function VibeCard({
   vibe,
   onCreateCut,
   onDeleteCut,
+  onUpdateCut,
   onEditVibe,
   onDeleteVibe,
   onUploadImage,
@@ -156,7 +158,13 @@ export function VibeCard({
   const [showAddCutModal, setShowAddCutModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [showEditCutModal, setShowEditCutModal] = useState(false);
+  const [showCutActionsSheet, setShowCutActionsSheet] = useState(false);
+  const [selectedCut, setSelectedCut] = useState<Cut | null>(null);
+  const [editingCut, setEditingCut] = useState<Cut | null>(null);
   const [cutName, setCutName] = useState('');
+  const [cutBpm, setCutBpm] = useState<string>('');
+  const [cutTimeSignature, setCutTimeSignature] = useState<string>('');
   const [editForm, setEditForm] = useState({
     name: vibe.name,
     theme: vibe.theme || '',
@@ -175,12 +183,57 @@ export function VibeCard({
     setError('');
 
     try {
-      await onCreateCut(vibe.id, cutName);
+      const data: { name: string; bpm?: number; timeSignature?: string } = { name: cutName };
+      if (cutBpm) data.bpm = parseInt(cutBpm, 10);
+      if (cutTimeSignature) data.timeSignature = cutTimeSignature;
+      await onCreateCut(vibe.id, data);
       setCutName('');
+      setCutBpm('');
+      setCutTimeSignature('');
       setShowAddCutModal(false);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Failed to create cut');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenCutActions = (cut: Cut) => {
+    setSelectedCut(cut);
+    setShowCutActionsSheet(true);
+  };
+
+  const handleCloseCutActions = () => {
+    setShowCutActionsSheet(false);
+    setSelectedCut(null);
+  };
+
+  const handleEditCutMetadata = (cut: Cut) => {
+    setEditingCut(cut);
+    setCutBpm(cut.bpm?.toString() || '');
+    setCutTimeSignature(cut.timeSignature || '');
+    setShowEditCutModal(true);
+  };
+
+  const handleSaveCutMetadata = async () => {
+    if (!editingCut) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await onUpdateCut(editingCut.id, {
+        bpm: cutBpm ? parseInt(cutBpm, 10) : null,
+        timeSignature: cutTimeSignature || null,
+      });
+      setShowEditCutModal(false);
+      setEditingCut(null);
+      setCutBpm('');
+      setCutTimeSignature('');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to update cut');
     } finally {
       setIsSubmitting(false);
     }
@@ -223,6 +276,7 @@ export function VibeCard({
   const actionMenuItems = [
     {
       label: 'Add Cut',
+      description: 'Create a new cut for this vibe',
       icon: (
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -232,6 +286,7 @@ export function VibeCard({
     },
     {
       label: 'Edit Vibe',
+      description: 'Update name, theme, and notes',
       icon: (
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -248,6 +303,7 @@ export function VibeCard({
     },
     {
       label: 'Upload Image',
+      description: 'Add or change cover image',
       icon: (
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -257,6 +313,7 @@ export function VibeCard({
     },
     {
       label: 'Delete Vibe',
+      description: 'Permanently remove this vibe and all cuts',
       icon: (
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -286,7 +343,7 @@ export function VibeCard({
                   <p className="text-sm text-primary truncate">{vibe.theme}</p>
                 )}
               </div>
-              <ActionMenu items={actionMenuItems} />
+              <ActionSheet items={actionMenuItems} title={vibe.name} />
             </div>
             {vibe.notes && (
               <p className="text-sm text-muted mt-1 line-clamp-2">{vibe.notes}</p>
@@ -334,7 +391,7 @@ export function VibeCard({
                           key={cut.id}
                           cut={cut}
                           index={index}
-                          onDelete={handleDeleteCut}
+                          onOpenActions={handleOpenCutActions}
                         />
                       ))}
                     </div>
@@ -455,6 +512,137 @@ export function VibeCard({
         description={`Add a cover image for "${vibe.name}"`}
         currentImage={vibe.image}
       />
+
+      {/* Edit Cut BPM/Time Signature Side Sheet */}
+      <SideSheet
+        isOpen={showEditCutModal}
+        onClose={() => {
+          setShowEditCutModal(false);
+          setEditingCut(null);
+          setCutBpm('');
+          setCutTimeSignature('');
+          setError('');
+        }}
+        title="Set BPM & Time Signature"
+        description={editingCut ? `Update tempo info for "${editingCut.name}"` : ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowEditCutModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveCutMetadata} isLoading={isSubmitting}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="BPM (Beats Per Minute)"
+            type="number"
+            placeholder="e.g., 120"
+            value={cutBpm}
+            onChange={(e) => setCutBpm(e.target.value)}
+            min={1}
+            max={999}
+          />
+          <div>
+            <label className="block text-sm font-medium text-text mb-1">
+              Time Signature
+            </label>
+            <select
+              value={cutTimeSignature}
+              onChange={(e) => setCutTimeSignature(e.target.value)}
+              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="">Select time signature</option>
+              <option value="4/4">4/4 (Common Time)</option>
+              <option value="3/4">3/4 (Waltz)</option>
+              <option value="6/8">6/8</option>
+              <option value="2/4">2/4</option>
+              <option value="5/4">5/4</option>
+              <option value="7/8">7/8</option>
+              <option value="12/8">12/8</option>
+            </select>
+          </div>
+          {error && <p className="text-sm text-error">{error}</p>}
+        </div>
+      </SideSheet>
+
+      {/* Cut Actions Side Sheet */}
+      <SideSheet
+        isOpen={showCutActionsSheet}
+        onClose={handleCloseCutActions}
+        title={selectedCut?.name || 'Cut Actions'}
+        description="Choose an action"
+      >
+        <div className="space-y-2">
+          {/* Open Cut */}
+          <Link
+            to={selectedCut ? `/cuts/${selectedCut.id}` : '#'}
+            onClick={handleCloseCutActions}
+            className="flex items-center gap-4 w-full p-4 rounded-lg bg-surface-light hover:bg-primary/10 transition-colors"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-text">Open Cut</p>
+              <p className="text-sm text-muted">View and edit audio files</p>
+            </div>
+          </Link>
+
+          {/* Set BPM & Time Signature */}
+          <button
+            onClick={() => {
+              if (selectedCut) {
+                handleEditCutMetadata(selectedCut);
+                handleCloseCutActions();
+              }
+            }}
+            className="flex items-center gap-4 w-full p-4 rounded-lg bg-surface-light hover:bg-primary/10 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-text">Set BPM & Time</p>
+              <p className="text-sm text-muted">
+                {selectedCut?.bpm || selectedCut?.timeSignature 
+                  ? `Current: ${selectedCut?.bpm ? `${selectedCut.bpm} BPM` : ''}${selectedCut?.bpm && selectedCut?.timeSignature ? ' · ' : ''}${selectedCut?.timeSignature || ''}`
+                  : 'Add tempo information'}
+              </p>
+            </div>
+          </button>
+
+          {/* Delete Cut */}
+          <button
+            onClick={() => {
+              if (selectedCut) {
+                const cutId = selectedCut.id;
+                handleCloseCutActions();
+                handleDeleteCut(cutId);
+              }
+            }}
+            className="flex items-center gap-4 w-full p-4 rounded-lg bg-surface-light hover:bg-error/10 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-full bg-error/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-error">Delete Cut</p>
+              <p className="text-sm text-muted">Permanently remove this cut</p>
+            </div>
+          </button>
+        </div>
+      </SideSheet>
     </>
   );
 }
