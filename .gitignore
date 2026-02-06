@@ -21,6 +21,9 @@ uploads/audio/*
 !uploads/images/.gitkeep
 !uploads/audio/.gitkeep
 
+# Test uploads
+backend/uploads/test-*
+
 # IDE
 .vscode/
 .idea/
