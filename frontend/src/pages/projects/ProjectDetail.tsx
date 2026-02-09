@@ -3,9 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getProject, uploadProjectImage, addProjectMember, removeProjectMember } from '../../api/projects';
 import { createVibe, deleteVibe, updateVibe, uploadVibeImage } from '../../api/vibes';
-import { createCut, deleteCut, reorderCuts, updateCut } from '../../api/cuts';
+import { createCut, deleteCut, reorderCuts, updateCut, moveCut } from '../../api/cuts';
 import { getUsers } from '../../api/users';
-import { Project, User } from '../../types';
+import { Project, User, Cut } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardImage } from '../../components/ui/Card';
 import { SideSheet } from '../../components/ui/Modal';
@@ -13,11 +13,35 @@ import { Input, Textarea } from '../../components/ui/Input';
 import { Loading } from '../../components/ui/Loading';
 import { VibeCard } from '../../components/vibes/VibeCard';
 import { ImageUploadSheet } from '../../components/files/ImageUploadSheet';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px drag before activating (prevents accidental drags)
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +53,7 @@ export function ProjectDetail() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [activeDragCut, setActiveDragCut] = useState<Cut | null>(null);
 
   const fetchProject = async () => {
     if (!id) return;
@@ -118,32 +143,141 @@ export function ProjectDetail() {
     fetchProject();
   };
 
-  const handleReorderCuts = async (vibeId: string, cutIds: string[]) => {
-    if (!project) return;
+  const handleMoveCut = async (cutId: string, targetVibeId: string) => {
+    await moveCut(cutId, targetVibeId);
+    fetchProject();
+  };
 
-    // Optimistically update the UI immediately
-    const updatedVibes = project.vibes?.map(vibe => {
-      if (vibe.id === vibeId) {
-        // Reorder cuts based on cutIds array
-        const reorderedCuts = cutIds
-          .map(cutId => vibe.cuts?.find(cut => cut.id === cutId))
-          .filter((cut): cut is NonNullable<typeof cut> => cut !== undefined);
-        
-        return { ...vibe, cuts: reorderedCuts };
+  // Find which vibe a cut belongs to
+  const findCutVibe = (cutId: string) => {
+    return project?.vibes?.find(vibe => vibe.cuts?.some(cut => cut.id === cutId));
+  };
+
+  // Find a cut by ID across all vibes
+  const findCut = (cutId: string): Cut | undefined => {
+    for (const vibe of project?.vibes || []) {
+      const cut = vibe.cuts?.find(c => c.id === cutId);
+      if (cut) return cut;
+    }
+    return undefined;
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const cut = findCut(active.id as string);
+    setActiveDragCut(cut || null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveDragCut(null);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragCut(null);
+
+    if (!over || !project) return;
+
+    const activeCutId = active.id as string;
+    const overId = over.id as string;
+
+    // Find source vibe (where the cut is coming from)
+    const sourceVibe = findCutVibe(activeCutId);
+    if (!sourceVibe) return;
+
+    // Check if dropped on a vibe (for cross-vibe move)
+    const targetVibe = project.vibes?.find(v => v.id === overId);
+    
+    if (targetVibe && targetVibe.id !== sourceVibe.id) {
+      // Cross-vibe move: dropped on a different vibe
+      const cut = findCut(activeCutId);
+      if (!cut) return;
+
+      // Optimistic update
+      const updatedVibes = project.vibes?.map(vibe => {
+        if (vibe.id === sourceVibe.id) {
+          // Remove from source
+          return { ...vibe, cuts: vibe.cuts?.filter(c => c.id !== activeCutId) };
+        }
+        if (vibe.id === targetVibe.id) {
+          // Add to target
+          return { ...vibe, cuts: [...(vibe.cuts || []), cut] };
+        }
+        return vibe;
+      });
+      setProject({ ...project, vibes: updatedVibes });
+
+      // API call
+      try {
+        await moveCut(activeCutId, targetVibe.id);
+      } catch (error) {
+        console.error('Failed to move cut:', error);
+        fetchProject(); // Revert on error
       }
-      return vibe;
-    });
+      return;
+    }
 
-    setProject({ ...project, vibes: updatedVibes });
+    // Check if dropped on another cut (for reordering within same vibe or cross-vibe)
+    const overCutVibe = findCutVibe(overId);
+    
+    if (overCutVibe) {
+      if (overCutVibe.id === sourceVibe.id) {
+        // Same vibe reordering
+        const oldIndex = sourceVibe.cuts?.findIndex(cut => cut.id === activeCutId) ?? -1;
+        const newIndex = sourceVibe.cuts?.findIndex(cut => cut.id === overId) ?? -1;
 
-    // Make API call in background
-    try {
-      await reorderCuts(vibeId, cutIds);
-      // Success - the optimistic update was correct, no need to refetch
-    } catch (error) {
-      console.error('Failed to reorder cuts:', error);
-      // On error, refetch to revert to server state
-      fetchProject();
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          const newCuts = [...(sourceVibe.cuts || [])];
+          const [removed] = newCuts.splice(oldIndex, 1);
+          newCuts.splice(newIndex, 0, removed);
+          
+          const cutIds = newCuts.map(cut => cut.id);
+
+          // Optimistic update
+          const updatedVibes = project.vibes?.map(vibe => {
+            if (vibe.id === sourceVibe.id) {
+              return { ...vibe, cuts: newCuts };
+            }
+            return vibe;
+          });
+          setProject({ ...project, vibes: updatedVibes });
+
+          // API call
+          try {
+            await reorderCuts(sourceVibe.id, cutIds);
+          } catch (error) {
+            console.error('Failed to reorder cuts:', error);
+            fetchProject();
+          }
+        }
+      } else {
+        // Cross-vibe move: dropped on a cut in a different vibe
+        const cut = findCut(activeCutId);
+        if (!cut) return;
+
+        // Optimistic update
+        const updatedVibes = project.vibes?.map(vibe => {
+          if (vibe.id === sourceVibe.id) {
+            return { ...vibe, cuts: vibe.cuts?.filter(c => c.id !== activeCutId) };
+          }
+          if (vibe.id === overCutVibe.id) {
+            const newCuts = [...(vibe.cuts || [])];
+            const overIndex = newCuts.findIndex(c => c.id === overId);
+            newCuts.splice(overIndex, 0, cut);
+            return { ...vibe, cuts: newCuts };
+          }
+          return vibe;
+        });
+        setProject({ ...project, vibes: updatedVibes });
+
+        // API call
+        try {
+          await moveCut(activeCutId, overCutVibe.id);
+        } catch (error) {
+          console.error('Failed to move cut:', error);
+          fetchProject();
+        }
+      }
     }
   };
 
@@ -293,21 +427,51 @@ export function ProjectDetail() {
             <p className="text-sm text-muted mt-1">Create a vibe to start organizing your music</p>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {project.vibes?.map((vibe) => (
-              <VibeCard
-                key={vibe.id}
-                vibe={vibe}
-                onCreateCut={handleCreateCut}
-                onDeleteCut={handleDeleteCut}
-                onUpdateCut={handleUpdateCut}
-                onEditVibe={handleUpdateVibe}
-                onDeleteVibe={handleDeleteVibe}
-                onUploadImage={handleUploadVibeImage}
-                onReorderCuts={handleReorderCuts}
-              />
-            ))}
-          </div>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {project.vibes?.map((vibe) => (
+                <VibeCard
+                  key={vibe.id}
+                  vibe={vibe}
+                  allVibes={project.vibes}
+                  onCreateCut={handleCreateCut}
+                  onDeleteCut={handleDeleteCut}
+                  onUpdateCut={handleUpdateCut}
+                  onMoveCut={handleMoveCut}
+                  onEditVibe={handleUpdateVibe}
+                  onDeleteVibe={handleDeleteVibe}
+                  onUploadImage={handleUploadVibeImage}
+                />
+              ))}
+            </div>
+            <DragOverlay>
+              {activeDragCut ? (
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-surface border border-primary shadow-lg">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-text truncate">{activeDragCut.name}</h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {activeDragCut.bpm && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
+                          {activeDragCut.bpm} BPM
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
       </div>
 

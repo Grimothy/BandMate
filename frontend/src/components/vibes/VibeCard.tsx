@@ -7,22 +7,10 @@ import { SideSheet } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { ImageUploadSheet } from '../files/ImageUploadSheet';
+import { useDroppable } from '@dnd-kit/core';
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -114,54 +102,42 @@ function SortableCutItem({ cut, index, onOpenActions }: SortableCutItemProps) {
 
 interface VibeCardProps {
   vibe: Vibe;
+  allVibes?: Vibe[];
   onCreateCut: (vibeId: string, data: { name: string; bpm?: number; timeSignature?: string }) => Promise<void>;
   onDeleteCut: (cutId: string) => Promise<void>;
   onUpdateCut: (cutId: string, data: { name?: string; bpm?: number | null; timeSignature?: string | null }) => Promise<void>;
+  onMoveCut?: (cutId: string, targetVibeId: string) => Promise<void>;
   onEditVibe: (vibeId: string, data: { name?: string; theme?: string; notes?: string }) => Promise<void>;
   onDeleteVibe: (vibeId: string) => Promise<void>;
   onUploadImage: (vibeId: string, file: File) => Promise<void>;
-  onReorderCuts: (vibeId: string, cutIds: string[]) => Promise<void>;
 }
 
 export function VibeCard({
   vibe,
+  allVibes,
   onCreateCut,
   onDeleteCut,
   onUpdateCut,
+  onMoveCut,
   onEditVibe,
   onDeleteVibe,
   onUploadImage,
-  onReorderCuts,
 }: VibeCardProps) {
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  // Make the vibe card a drop target for cross-vibe drag and drop
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: vibe.id,
+  });
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      const oldIndex = vibe.cuts?.findIndex((cut) => cut.id === active.id) ?? -1;
-      const newIndex = vibe.cuts?.findIndex((cut) => cut.id === over.id) ?? -1;
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newCuts = arrayMove(vibe.cuts || [], oldIndex, newIndex);
-        const cutIds = newCuts.map(cut => cut.id);
-        await onReorderCuts(vibe.id, cutIds);
-      }
-    }
-  };
   const [isExpanded, setIsExpanded] = useState(true);
   const [showAddCutModal, setShowAddCutModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showEditCutModal, setShowEditCutModal] = useState(false);
   const [showCutActionsSheet, setShowCutActionsSheet] = useState(false);
+  const [showMoveCutModal, setShowMoveCutModal] = useState(false);
   const [selectedCut, setSelectedCut] = useState<Cut | null>(null);
   const [editingCut, setEditingCut] = useState<Cut | null>(null);
+  const [selectedTargetVibeId, setSelectedTargetVibeId] = useState<string>('');
   const [cutName, setCutName] = useState('');
   const [cutBpm, setCutBpm] = useState<string>('');
   const [cutTimeSignature, setCutTimeSignature] = useState<string>('');
@@ -269,6 +245,27 @@ export function VibeCard({
     await onDeleteCut(cutId);
   };
 
+  const handleMoveCut = async () => {
+    if (!selectedCut || !selectedTargetVibeId || !onMoveCut) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await onMoveCut(selectedCut.id, selectedTargetVibeId);
+      setShowMoveCutModal(false);
+      setSelectedCut(null);
+      setSelectedTargetVibeId('');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to move cut');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const otherVibes = allVibes?.filter(v => v.id !== vibe.id) || [];
+
   const handleImageUpload = async (file: File) => {
     await onUploadImage(vibe.id, file);
   };
@@ -326,7 +323,10 @@ export function VibeCard({
 
   return (
     <>
-      <Card className="overflow-hidden">
+      <Card 
+        ref={setDroppableRef}
+        className={`overflow-hidden transition-all ${isOver ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+      >
         {/* Header with image and info */}
         <div className="flex gap-4">
           {/* Image */}
@@ -376,27 +376,21 @@ export function VibeCard({
               {vibe.cuts?.length === 0 ? (
                 <p className="text-sm text-muted py-2">No cuts yet. Add one to get started.</p>
               ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+                <SortableContext
+                  items={vibe.cuts?.map(cut => cut.id) || []}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <SortableContext
-                    items={vibe.cuts?.map(cut => cut.id) || []}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="space-y-2">
-                      {vibe.cuts?.map((cut, index) => (
-                        <SortableCutItem
-                          key={cut.id}
-                          cut={cut}
-                          index={index}
-                          onOpenActions={handleOpenCutActions}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                  <div className="space-y-2">
+                    {vibe.cuts?.map((cut, index) => (
+                      <SortableCutItem
+                        key={cut.id}
+                        cut={cut}
+                        index={index}
+                        onOpenActions={handleOpenCutActions}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
               )}
 
               {/* Add Cut Button */}
@@ -620,6 +614,28 @@ export function VibeCard({
             </div>
           </button>
 
+          {/* Move Cut to Another Vibe */}
+          {onMoveCut && otherVibes.length > 0 && (
+            <button
+              onClick={() => {
+                // Close actions sheet but keep selectedCut for the move modal
+                setShowCutActionsSheet(false);
+                setShowMoveCutModal(true);
+              }}
+              className="flex items-center gap-4 w-full p-4 rounded-lg bg-surface-light hover:bg-primary/10 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-text">Move to Another Vibe</p>
+                <p className="text-sm text-muted">Move this cut to a different vibe</p>
+              </div>
+            </button>
+          )}
+
           {/* Delete Cut */}
           <button
             onClick={() => {
@@ -641,6 +657,90 @@ export function VibeCard({
               <p className="text-sm text-muted">Permanently remove this cut</p>
             </div>
           </button>
+        </div>
+      </SideSheet>
+
+      {/* Move Cut Side Sheet */}
+      <SideSheet
+        isOpen={showMoveCutModal}
+        onClose={() => {
+          setShowMoveCutModal(false);
+          setSelectedCut(null);
+          setSelectedTargetVibeId('');
+          setError('');
+        }}
+        title="Move Cut"
+        description={selectedCut ? `Move "${selectedCut.name}" to another vibe` : 'Select a vibe'}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowMoveCutModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleMoveCut} 
+              isLoading={isSubmitting}
+              disabled={!selectedTargetVibeId}
+            >
+              Move Cut
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {otherVibes.length === 0 ? (
+            <p className="text-muted text-center py-4">No other vibes available in this project</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted mb-3">Select the destination vibe:</p>
+              {otherVibes.map((targetVibe) => (
+                <label
+                  key={targetVibe.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                    selectedTargetVibeId === targetVibe.id
+                      ? 'bg-primary/10 border border-primary'
+                      : 'bg-surface-light border border-transparent hover:border-border'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="targetVibe"
+                    value={targetVibe.id}
+                    checked={selectedTargetVibeId === targetVibe.id}
+                    onChange={(e) => setSelectedTargetVibeId(e.target.value)}
+                    className="hidden"
+                  />
+                  <div className="w-10 h-10 bg-surface rounded-lg overflow-hidden flex-shrink-0">
+                    {targetVibe.image ? (
+                      <img 
+                        src={targetVibe.image} 
+                        alt={targetVibe.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                        <span className="text-primary font-medium text-sm">
+                          {targetVibe.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-text truncate">{targetVibe.name}</p>
+                    <p className="text-sm text-muted">
+                      {targetVibe.cuts?.length || 0} cuts
+                      {targetVibe.theme && ` · ${targetVibe.theme}`}
+                    </p>
+                  </div>
+                  {selectedTargetVibeId === targetVibe.id && (
+                    <svg className="w-5 h-5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+          {error && <p className="text-error text-sm">{error}</p>}
         </div>
       </SideSheet>
     </>
