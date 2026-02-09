@@ -21,8 +21,7 @@ import {
   ActivityType, 
   getActivities, 
   markActivityAsRead, 
-  markAllActivitiesAsRead,
-  dismissActivity 
+  markAllActivitiesAsRead 
 } from '../../api/activities';
 import { getProjects } from '../../api/projects';
 import { Project } from '../../types';
