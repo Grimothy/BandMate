@@ -893,7 +893,9 @@ export function CutDetail() {
   }, [cut?.comments]);
 
   const getCommentsForAudio = (audioFileId: string) => {
-    return cut?.comments?.filter(c => c.managedFileId === audioFileId) || [];
+    return cut?.comments
+      ?.filter(c => c.managedFileId === audioFileId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || [];
   };
 
   const getSelectedAudio = () => {
