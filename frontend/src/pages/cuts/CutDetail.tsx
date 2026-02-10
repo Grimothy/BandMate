@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
-import { uploadCut } from '../../api/files';
+import { uploadCut, uploadStem } from '../../api/files';
 import { useAuth } from '../../hooks/useAuth';
 import { Cut, Comment } from '../../types';
 import { Button } from '../../components/ui/Button';
@@ -628,9 +628,16 @@ export function CutDetail() {
     const file = e.target.files?.[0];
     if (!file || !id) return;
 
+    // Detect file type
+    const isZip = file.name.toLowerCase().endsWith('.zip');
+
     setIsUploading(true);
     try {
-      await uploadCut(id, file);
+      if (isZip) {
+        await uploadStem(id, file);
+      } else {
+        await uploadCut(id, file);
+      }
       // Trigger refresh of file explorer
       setFileExplorerKey(prev => prev + 1);
       // Also refresh cut data so Audio tab gets the new file
@@ -955,7 +962,7 @@ export function CutDetail() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="audio/*"
+            accept="audio/*,.zip"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -979,7 +986,7 @@ export function CutDetail() {
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              Upload File
+              Upload Audio or Stems
             </Button>
           )}
         </div>
