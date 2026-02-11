@@ -1,6 +1,6 @@
 {
   "name": "bandmate-backend",
-  "version": "1.4.1-test",
+  "version": "1.4.0",
   "description": "BandMate music collaboration backend",
   "main": "dist/index.js",
   "scripts": {
