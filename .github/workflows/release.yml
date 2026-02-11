@@ -1,77 +1,107 @@
 name: Release
 
 on:
-  # Trigger on published releases (for production tags like v1.0.0)
+  # Trigger on published releases (tags like v1.x.x)
   release:
     types: [published]
-  
-  # Auto-push Docker images for experimental branches
-  push:
-    branches:
-      - develop
-      - experimental
-      - 'release/**'
-  
-  # Also allow manual trigger for testing
+
+  # Manual trigger for testing
   workflow_dispatch:
     inputs:
       tag:
         description: 'Docker image tag (e.g., dev, beta, 1.0.0)'
         required: true
         default: 'dev'
+      skip_version_sync:
+        description: 'Skip version sync step'
+        required: false
+        type: boolean
+        default: true
 
 env:
   DOCKER_IMAGE: grimothy/bandmate
 
 jobs:
-  # Only run Docker push if CI passes (for branch pushes)
-  ci-check:
-    name: Wait for CI
-    if: github.event_name == 'push'
+  # --- Job 1: Sync package.json versions to match the release tag ---
+  sync-versions:
+    name: Sync Package Versions
     runs-on: ubuntu-latest
-    steps:
-      - name: CI check placeholder
-        run: echo "CI workflows run in parallel - this job ensures release waits"
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
 
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Determine version from release tag
+        id: version
+        run: |
+          # Strip v/V prefix from tag
+          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=${VERSION#V}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Syncing package.json files to version: $VERSION"
+
+      - name: Update package.json files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          cd backend
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          cd ..
+
+          cd frontend
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          cd ..
+
+          echo "Updated package.json files to version $VERSION"
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed - versions already in sync"
+          else
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add backend/package.json backend/package-lock.json frontend/package.json frontend/package-lock.json
+            git commit -m "chore: sync package.json versions to ${{ steps.version.outputs.version }}"
+            git push origin main
+          fi
+
+  # --- Job 2: Build and push Docker image ---
   docker-push:
     name: Build and Push to Docker Hub
     runs-on: ubuntu-latest
-    # For branch pushes, wait for ci-check (which runs alongside CI)
-    needs: [ci-check]
-    if: always() && (github.event_name != 'push' || needs.ci-check.result == 'success')
+    needs: [sync-versions]
+    # Run after sync-versions succeeds, or skip the dependency for manual runs
+    if: always() && (needs.sync-versions.result == 'success' || needs.sync-versions.result == 'skipped')
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Determine version tag
         id: version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
-            # For releases, use the tag name (remove 'v' prefix)
             VERSION=${GITHUB_REF_NAME#v}
-            echo "is_latest=true" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            # For branch pushes, use branch name as tag
-            BRANCH=${GITHUB_REF_NAME}
-            # Replace slashes with dashes (release/1.0 -> release-1.0)
-            VERSION=${BRANCH//\//-}
-            echo "is_latest=false" >> $GITHUB_OUTPUT
           else
-            # For manual runs, use the input tag
             VERSION=${{ github.event.inputs.tag }}
-            echo "is_latest=false" >> $GITHUB_OUTPUT
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Building with tag: $VERSION"
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       # Production release: tag with version AND latest
       - name: Build and push (release)
         if: github.event_name == 'release'
@@ -84,10 +114,10 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
-      # Branch/manual push: only tag with branch name (no latest)
-      - name: Build and push (branch/manual)
-        if: github.event_name != 'release'
+
+      # Manual push: only tag with provided name (no latest)
+      - name: Build and push (manual)
+        if: github.event_name == 'workflow_dispatch'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -96,7 +126,7 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       # Trigger BandMate_site rebuild on production releases
       - name: Trigger site rebuild
         if: github.event_name == 'release'

@@ -5,27 +5,50 @@
 <h1 align="center">BandMate</h1>
 
 <p align="center">
-  A music collaboration platform for bands to create and share music together.
+  <strong>Your Band's Digital Studio</strong>
+</p>
+
+<p align="center">
+  A self-hosted platform where bands organize projects, share audio files and stems, leave timestamped feedback, and collaborate in real-time — all from a single dashboard.
+</p>
+
+<p align="center">
+  <a href="https://grimothy.github.io/BandMate_site/">Website</a> •
+  <a href="https://grimothy.github.io/BandMate_site/docs/intro">Documentation</a> •
+  <a href="https://ko-fi.com/mrgrimothy">Support</a>
 </p>
 
 ---
 
 ## Features
 
-- **Real-time Collaboration** - Work on projects simultaneously with your bandmates via WebSockets
-- **Audio Waveform Visualization** - See your tracks with interactive waveforms (Wavesurfer.js)
-- **Project Organization** - Organize songs into "Vibes" and manage multiple "Cuts" per song
-- **File Management** - Upload and manage audio files, stems, and project images
-- **Timestamped Comments** - Leave feedback at specific points in a track
-- **User Invitations** - Invite band members via email with customizable permissions
-- **Notifications** - Stay updated on project activity
-- **Google OAuth** - Optional single sign-on support
+### Projects, Vibes & Cuts
+Organize your music into a natural hierarchy. Projects hold your band's work, Vibes group songs by mood or theme, and Cuts are your individual tracks.
+
+### Waveform Player
+Built-in audio player powered by WaveSurfer.js with interactive waveform visualization. Supports MP3, WAV, FLAC, OGG, AAC, and M4A.
+
+### Timestamped Comments
+Drop comments at the exact moment in a track. Markers appear on the waveform so your bandmates know precisely what you're talking about.
+
+### Real-Time Collaboration
+WebSocket-powered live updates keep everyone in sync. See uploads, comments, and activity from your bandmates the moment they happen.
+
+### File Management
+Drag-and-drop uploads for audio files, stem ZIPs up to 500MB, and cover images. Share files publicly with tokenized links.
+
+### Invite Your Band
+Send email invitations with role-based permissions. Supports Google OAuth for quick onboarding and admin controls for managing your team.
 
 ---
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
+### Up and Running in 60 Seconds
+
+**1. Pull & Run**
+
+A single Docker command gets BandMate running with SQLite, ready to use out of the box.
 
 ```bash
 docker run -d \
@@ -38,9 +61,19 @@ docker run -d \
   grimothy/bandmate:latest
 ```
 
-Open http://localhost:3000 and login with `admin@bandmate.local` / `admin`
+**2. Login**
 
-### Option 2: Docker Compose
+Open http://localhost:3000 and sign in with the default admin account:
+- Email: `admin@bandmate.local`
+- Password: `admin`
+
+Then create users or enable Google OAuth for your team.
+
+**3. Create & Collaborate**
+
+Create a project, invite your bandmates, upload tracks, and start collaborating in real-time.
+
+### Docker Compose
 
 ```bash
 git clone https://github.com/Grimothy/BandMate.git
@@ -48,7 +81,7 @@ cd BandMate
 docker-compose up -d
 ```
 
-### Option 3: Local Development
+### Local Development
 
 ```bash
 # Backend
@@ -160,12 +193,28 @@ volumes:
 
 ---
 
+## Documentation
+
+- [Getting Started](https://grimothy.github.io/BandMate_site/docs/intro)
+- [Installation Guide](https://grimothy.github.io/BandMate_site/docs/installation)
+- [Configuration](https://grimothy.github.io/BandMate_site/docs/configuration)
+- [User Guide](https://grimothy.github.io/BandMate_site/docs/category/user-guide)
+- [Deployment](https://grimothy.github.io/BandMate_site/docs/deployment)
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
+
+See the [Contributing Guide](https://grimothy.github.io/BandMate_site/docs/contributing) for more details.
+
+## Support
+
+If you find BandMate useful, consider supporting the project:
+
+[☕ Buy Me a Coffee](https://ko-fi.com/mrgrimothy)
 
 ## License
 
