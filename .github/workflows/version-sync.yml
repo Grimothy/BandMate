@@ -1,0 +1,87 @@
+name: Version Sync
+
+on:
+  # Run manually to sync versions
+  workflow_dispatch:
+    inputs:
+      new_version:
+        description: 'New version (e.g., 1.4.1) - leave empty to sync with latest git tag'
+        required: false
+        type: string
+  # Run when a new tag is pushed
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  sync-versions:
+    name: Sync Package.json Versions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            # Use the pushed tag
+            VERSION=${GITHUB_REF_NAME#v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "source=git_tag" >> $GITHUB_OUTPUT
+          elif [ -n "${{ inputs.new_version }}" ]; then
+            # Use manually provided version
+            VERSION=${{ inputs.new_version }}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "source=manual" >> $GITHUB_OUTPUT
+          else
+            # Get latest tag
+            git fetch --tags
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+            VERSION=${LATEST_TAG#v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "source=latest_tag" >> $GITHUB_OUTPUT
+          fi
+          echo "Syncing to version: $VERSION"
+      
+      - name: Update package.json files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Update backend package.json
+          cd backend
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          cd ..
+          
+          # Update frontend package.json
+          cd frontend
+          npm version $VERSION --no-git-tag-version --allow-same-version
+          cd ..
+          
+          echo "Updated package.json files to version $VERSION"
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes needed - versions already in sync"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected - will commit"
+          fi
+      
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backend/package.json backend/package-lock.json frontend/package.json frontend/package-lock.json
+          git commit -m "chore: sync package.json versions to ${{ steps.version.outputs.version }}"
+          git push
+      
+      # Note: Site rebuild is triggered by release.yml on GitHub releases only

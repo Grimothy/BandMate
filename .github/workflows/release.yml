@@ -96,3 +96,13 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      # Trigger BandMate_site rebuild on production releases
+      - name: Trigger site rebuild
+        if: github.event_name == 'release'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.SITE_REPO_TOKEN }}
+          repository: Grimothy/BandMate_site
+          event-type: bandmate-released
+          client-payload: '{"version": "${{ steps.version.outputs.version }}", "ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
