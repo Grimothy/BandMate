@@ -148,6 +148,24 @@ const CommentItem = memo(function CommentItem({
   };
 
   const color = getThreadColor();
+  
+  // Generate lighter background color from the thread color
+  const getBackgroundStyle = () => {
+    if (!color || isHighlighted) return {};
+    if (color.startsWith('hsl')) {
+      // Extract hue from HSL string
+      const hue = color.match(/hsl\((\d+)/)?.[1];
+      if (hue) {
+        return {
+          backgroundColor: `hsl(${hue}, 70%, 15%)`,
+          borderColor: color,
+        };
+      }
+    }
+    return {
+      borderColor: color,
+    };
+  };
 
   return (
     <div id={`comment-${comment.id}`} className={depth > 0 ? 'ml-6 border-l-2 border-border pl-3' : ''}>
@@ -157,21 +175,36 @@ const CommentItem = memo(function CommentItem({
             ? 'bg-primary/20 ring-2 ring-primary shadow-lg animate-pulse'
             : comment.managedFileId === selectedAudioFileId
             ? 'bg-primary/10 ring-1 ring-primary/30'
-            : 'bg-surface-light'
+            : color 
+              ? '' // Will be styled with inline styles
+              : 'bg-surface-light'
         }`}
-        style={color ? { borderLeft: `3px solid ${color}` } : undefined}
+        style={{
+          ...getBackgroundStyle(),
+          borderLeft: color ? `3px solid ${color}` : undefined,
+        }}
       >
         <div className="flex-shrink-0 space-y-1">
           {hasTimestamp ? (
             <button
               onClick={handleTimestampClick}
-              className="inline-block px-2 py-1 bg-primary/20 text-primary text-xs font-mono rounded hover:bg-primary/30 transition-colors cursor-pointer"
+              className={`inline-block px-2 py-1 text-xs font-mono rounded transition-colors cursor-pointer ${
+                color 
+                  ? 'hover:brightness-110' 
+                  : 'bg-primary/20 text-primary hover:bg-primary/30'
+              }`}
+              style={color ? { backgroundColor: `${color}30`, color: color } : undefined}
               title="Click to seek to this time"
             >
               {formatTime(comment.timestamp as number)}
             </button>
           ) : (
-            <span className="inline-block px-2 py-1 bg-muted/20 text-muted text-xs rounded">
+            <span 
+              className={`inline-block px-2 py-1 text-xs rounded ${
+                color ? '' : 'bg-muted/20 text-muted'
+              }`}
+              style={color ? { backgroundColor: `${color}20`, color: color } : undefined}
+            >
               Reply
             </span>
           )}
@@ -258,7 +291,10 @@ const CommentItem = memo(function CommentItem({
               {!isReply && (
                 <button
                   onClick={() => onStartReply(comment.id)}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                  className={`text-xs transition-colors ${
+                    color ? 'hover:brightness-125' : 'text-primary hover:text-primary/80'
+                  }`}
+                  style={color ? { color: color } : undefined}
                 >
                   Reply
                 </button>
@@ -291,7 +327,16 @@ const CommentItem = memo(function CommentItem({
 
       {/* Inline Reply Form */}
       {isReplying && (
-        <div className="mt-2 ml-6 p-3 bg-surface-light rounded-lg border border-border">
+        <div 
+          className="mt-2 ml-6 p-3 rounded-lg border"
+          style={color ? { 
+            backgroundColor: `${color}10`, 
+            borderColor: `${color}40` 
+          } : { 
+            backgroundColor: 'hsl(var(--surface-light))', 
+            borderColor: 'hsl(var(--border))' 
+          }}
+        >
           <textarea
             value={replyText}
             onChange={(e) => onReplyTextChange(e.target.value)}
@@ -311,7 +356,10 @@ const CommentItem = memo(function CommentItem({
             <button
               onClick={() => onSubmitReply(comment.id)}
               disabled={!replyText.trim() || isAddingReply}
-              className="px-3 py-1.5 text-sm bg-primary text-white rounded hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`px-3 py-1.5 text-sm text-white rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                color ? 'hover:brightness-110' : 'hover:bg-primary/90'
+              }`}
+              style={color ? { backgroundColor: color } : undefined}
             >
               {isAddingReply ? 'Posting...' : 'Reply'}
             </button>
