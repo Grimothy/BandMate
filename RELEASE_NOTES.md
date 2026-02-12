@@ -7,7 +7,8 @@ Complete release history for the BandMate project - a collaborative music produc
 ## Table of Contents
 
 - [Overview](#overview)
-- [v1.4.0 (Latest) - 2026-02-10](#v140-latest---2026-02-10)
+- [v1.4.2 (Latest) - 2026-02-11](#v142-latest---2026-02-11)
+- [v1.4.0 - 2026-02-10](#v140---2026-02-10)
 - [v1.3.0 - 2026-02-09](#v130---2026-02-09)
 - [v1.2.0 - 2026-02-06](#v120---2026-02-06)
 - [v1.1.0 - 2026-02-04](#v110---2026-02-04)
@@ -32,7 +33,30 @@ BandMate is a full-stack collaborative music production platform designed to hel
 
 ---
 
-## v1.4.0 (Latest) - 2026-02-10
+## v1.4.2 (Latest) - 2026-02-11
+
+### 🚀 New Features
+
+#### Improved Shared Audio Player UI/UX
+- **Commit:** 7af7647
+- **Description:** Redesigned shared audio player with immersive, centered layout
+- **Changes:**
+  - Added `hideMetadata` prop to AudioPlayer component for cleaner mobile view
+  - Removed duplicate album art and track info on mobile
+  - Moved download button to header (subtle icon)
+  - Improved responsive padding across all screen sizes
+  - Consistent centered design for both mobile and desktop
+  - Better spacing and larger album art (320×320px desktop)
+
+### 🔧 Infrastructure
+
+#### Add Release Command Tooling
+- **Commit:** d8d1667
+- **Description:** Added release management command for automated versioning
+
+---
+
+## v1.4.0 - 2026-02-10
 
 ### 🚀 New Features
 
@@ -287,6 +311,7 @@ BandMate is a full-stack collaborative music production platform designed to hel
 
 | Version | Date | Key Features |
 |---------|------|--------------|
+| v1.4.2 | 2026-02-11 | Improved shared audio player UI/UX |
 | v1.4.0 | 2026-02-10 | Stem ZIP upload support |
 | v1.3.0 | 2026-02-09 | Activity dismissal, drag-and-drop, deep linking |
 | v1.2.0 | 2026-02-06 | Mobile ActionSheet, backend optimization |
@@ -314,4 +339,4 @@ BandMate is a full-stack collaborative music production platform designed to hel
 
 **Thank you for using BandMate! 🎵 Keep creating music together.**
 
-*Last Updated: 2026-02-10*
+*Last Updated: 2026-02-11*
