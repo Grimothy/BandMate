@@ -108,6 +108,7 @@ export function AudioPlayer({
   });
   const [isMuted, setIsMuted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [canSeek, setCanSeek] = useState(false);
 
   // Format time as m:ss
   const formatTime = useCallback((seconds: number) => {
@@ -137,6 +138,10 @@ export function AudioPlayer({
     const handleLoadedMetadata = () => {
       setDuration(audio.duration);
       setIsLoading(false);
+      // Mobile browsers need canplay event before seeking works reliably
+      if (audio.readyState >= 2) {
+        setCanSeek(true);
+      }
     };
 
     const handleTimeUpdate = () => {
@@ -159,8 +164,21 @@ export function AudioPlayer({
       }
     };
 
-    const handleCanPlay = () => setIsLoading(false);
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setCanSeek(true);
+    };
     const handleWaiting = () => setIsLoading(true);
+
+    const handleStalled = () => {
+      console.warn('[AudioPlayer] Audio stalled, may need to retry loading');
+      setIsLoading(true);
+    };
+
+    const handleError = () => {
+      console.error('[AudioPlayer] Audio error:', audio.error);
+      setIsLoading(false);
+    };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -169,6 +187,8 @@ export function AudioPlayer({
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('stalled', handleStalled);
+    audio.addEventListener('error', handleError);
 
     // Set initial volume
     audio.volume = isMuted ? 0 : volume;
@@ -182,6 +202,8 @@ export function AudioPlayer({
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('stalled', handleStalled);
+      audio.removeEventListener('error', handleError);
     };
   }, [isLooping, isMuted, volume]);
 
@@ -313,8 +335,12 @@ export function AudioPlayer({
   const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = Number.parseFloat(e.target.value);
     setCurrentTime(newTime);
-    if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
+    if (audioRef.current && canSeek && !isLoading) {
+      try {
+        audioRef.current.currentTime = newTime;
+      } catch (err) {
+        console.warn('[AudioPlayer] Seek failed:', err);
+      }
     }
   };
 
@@ -379,7 +405,7 @@ export function AudioPlayer({
   return (
     <div className="bg-[hsl(var(--player-bg))] border border-border rounded-xl p-3 md:p-4 shadow-lg">
       {/* Hidden audio element */}
-      <audio ref={audioRef} src={audioUrl} preload="metadata">
+      <audio ref={audioRef} src={audioUrl} preload="auto" crossOrigin="anonymous">
         {/* No captions provided for these audio files; include an empty track element
             to satisfy accessibility/static analysis checks */}
         <track kind="descriptions" srcLang="en" label="descriptions" src="" />
@@ -435,8 +461,10 @@ export function AudioPlayer({
               step="0.1"
               value={currentTime}
               onChange={handleProgressChange}
-              className="flex-1 h-1 player-progress"
+              disabled={isLoading || !canSeek}
+              className={`flex-1 h-1 player-progress ${(isLoading || !canSeek) ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label="Seek"
+              title={isLoading ? 'Loading audio...' : !canSeek ? 'Audio not ready for seeking' : 'Seek'}
             />
             <span className="text-xs text-[hsl(var(--player-muted))] w-10 tabular-nums">
               {formatTime(duration)}
