@@ -163,16 +163,30 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Storage Display - at bottom of sidebar */}
         <StorageDisplay />
 
-        {/* Donation link */}
-        <div className="p-4 border-t border-border">
+        {/* Support / Docs links */}
+        <div className="p-4 border-t border-border flex flex-col gap-2">
+          <a
+            href="https://grimothy.github.io/BandMate_site/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors text-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 4h6v6" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 3L10 14" />
+            </svg>
+            <span>Documentation</span>
+          </a>
+
           <a
             href="https://ko-fi.com/mrgrimothy"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors text-sm"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
             </svg>
             <span>Support BandMate</span>
           </a>
