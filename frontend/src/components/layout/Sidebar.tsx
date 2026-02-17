@@ -172,9 +172,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors text-sm"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 4h6v6" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 3L10 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C6.5 6.75 3 10 3 13c0 3 3 6.25 9 6.75m0-13c5.5-.5 9 3.75 9 6.75 0 3-3 6-9 6.75" />
             </svg>
             <span>Documentation</span>
           </a>
@@ -191,6 +189,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span>Support BandMate</span>
           </a>
         </div>
+
+
       </aside>
     </>
   );
