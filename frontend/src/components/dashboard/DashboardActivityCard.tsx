@@ -176,8 +176,8 @@ export function DashboardActivityCard() {
     await dismissActivity(activityId);
   };
 
-  // Get first 5 activities for dashboard
-  const displayActivities = activities.slice(0, 5);
+  // Get first 8 activities for dashboard
+  const displayActivities = activities.slice(0, 8);
 
   return (
     <Card className="h-full">
@@ -229,13 +229,13 @@ export function DashboardActivityCard() {
       </div>
 
       {/* Footer - show only if there are more activities */}
-      {activities.length > 5 && (
+      {activities.length > 8 && (
         <div className="mt-3 pt-3 border-t border-border">
           <Link
             to="/activity"
             className="block w-full text-center text-xs text-muted hover:text-text transition-colors py-1"
           >
-            + {activities.length - 5} more activities
+            + {activities.length - 8} more activities
           </Link>
         </div>
       )}

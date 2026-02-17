@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FolderOpen, Archive, Music } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getProjects } from '../api/projects';
 import { Project } from '../types';
@@ -28,7 +29,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Section */}
+      {/* Welcome Section with Stat Badges */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold text-text">
           Welcome back, {user?.name}!
@@ -36,68 +37,35 @@ export function Dashboard() {
         <p className="text-muted mt-1">
           Here's an overview of your music projects
         </p>
-      </div>
-
-      {/* Stats and Activity Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stats Section - 2 columns */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-text">{projects.length}</p>
-                  <p className="text-sm text-muted">Projects</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-text">
-                    {projects.reduce((acc, p) => acc + (p.vibes?.length || 0), 0)}
-                  </p>
-                  <p className="text-sm text-muted">Vibes</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-lg">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-text">
-                    {projects.reduce((acc, p) => 
-                      acc + (p.vibes?.reduce((vacc, v) => vacc + (v.cuts?.length || 0), 0) || 0), 0
-                    )}
-                  </p>
-                  <p className="text-sm text-muted">Cuts</p>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-
-        {/* Activity Card - 1 column */}
-        <div className="lg:col-span-1">
-          <DashboardActivityCard />
+        
+        {/* Stat Badges */}
+        <div className="flex flex-wrap gap-2 mt-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            <FolderOpen className="w-4 h-4" />
+            <span className="font-bold">{projects.length}</span>
+            Projects
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            <Archive className="w-4 h-4" />
+            <span className="font-bold">
+              {projects.reduce((acc, p) => acc + (p.vibes?.length || 0), 0)}
+            </span>
+            Vibes
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            <Music className="w-4 h-4" />
+            <span className="font-bold">
+              {projects.reduce((acc, p) => 
+                acc + (p.vibes?.reduce((vacc, v) => vacc + (v.cuts?.length || 0), 0) || 0), 0
+              )}
+            </span>
+            Cuts
+          </span>
         </div>
       </div>
+
+      {/* Activity Section - Full Width */}
+      <DashboardActivityCard />
 
       {/* Recent Projects */}
       <div>

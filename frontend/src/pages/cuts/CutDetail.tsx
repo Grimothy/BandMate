@@ -7,6 +7,7 @@ import { Cut, Comment } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
+import { TimeInput, parseToSeconds } from '../../components/ui/TimeInput';
 import { Loading } from '../../components/ui/Loading';
 import { SideSheet, ConfirmationModal } from '../../components/ui/Modal';
 import { Tabs, TabPanel } from '../../components/ui/Tabs';
@@ -412,6 +413,7 @@ interface CommentsSectionProps {
   selectedAudio: any;
   selectedAudioFileId: string | null;
   commentTimestamp: number;
+  onCommentTimestampChange: (timestamp: number) => void;
   commentText: string;
   isAddingComment: boolean;
   replyingToId: string | null;
@@ -443,6 +445,7 @@ const CommentsSection = memo(function CommentsSection({
   selectedAudio,
   selectedAudioFileId,
   commentTimestamp,
+  onCommentTimestampChange,
   commentText,
   isAddingComment,
   replyingToId,
@@ -491,10 +494,19 @@ const CommentsSection = memo(function CommentsSection({
             <label className="block text-sm font-medium text-muted mb-1.5">
               Timestamp
             </label>
-            <Input
-              type="text"
+            <TimeInput
               value={formatTime(commentTimestamp)}
-              readOnly
+              onChange={(val) => {
+                const secs = parseToSeconds(val);
+                if (secs !== null) {
+                  onCommentTimestampChange(secs);
+                }
+              }}
+              onCommitSeconds={(secs) => {
+                if (selectedAudioFileId) {
+                  onCommentClick(selectedAudioFileId, secs);
+                }
+              }}
               className="text-center text-sm"
             />
             <span className="text-xs text-muted block mt-1">Click on waveform to set</span>
@@ -1309,6 +1321,7 @@ export function CutDetail() {
                 selectedAudio={selectedAudio}
                 selectedAudioFileId={selectedAudioFileId}
                 commentTimestamp={commentTimestamp}
+                onCommentTimestampChange={setCommentTimestamp}
                 commentText={commentText}
                 isAddingComment={isAddingComment}
                 replyingToId={replyingToId}
@@ -1368,6 +1381,7 @@ export function CutDetail() {
                 selectedAudio={selectedAudio}
                 selectedAudioFileId={selectedAudioFileId}
                 commentTimestamp={commentTimestamp}
+                onCommentTimestampChange={setCommentTimestamp}
                 commentText={commentText}
                 isAddingComment={isAddingComment}
                 replyingToId={replyingToId}
