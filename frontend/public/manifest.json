@@ -1,0 +1,22 @@
+{
+  "name": "BandMate",
+  "short_name": "BandMate",
+  "description": "Your Band's Digital Studio — organize projects, share audio, and collaborate in real-time.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
