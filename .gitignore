@@ -34,6 +34,9 @@ backend/uploads/test-*
 .DS_Store
 Thumbs.db
 
+# Temporary files
+.tmp/
+
 # Logs
 *.log
 npm-debug.log*
