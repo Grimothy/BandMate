@@ -12,11 +12,11 @@ import { Loading } from '../../components/ui/Loading';
 import { SideSheet, ConfirmationModal } from '../../components/ui/Modal';
 import { Tabs, TabPanel } from '../../components/ui/Tabs';
 import { Waveform, WaveformHandle } from '../../components/audio/Waveform';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetBody } from '../../components/ui/sheet';
 import { CutFileExplorer } from '../../components/files/CutFileExplorer';
 import { LyricsEditor } from '../../components/lyrics/LyricsEditor';
 import { ActionSheet } from '../../components/ui/ActionMenu';
 import { CutManifest } from '../../components/cuts/CutManifest';
+import { AnimatePresence, motion } from 'motion/react';
 
 // Icons for ActionMenu
 const InfoIcon = () => (
@@ -406,173 +406,6 @@ const CommentItem = memo(function CommentItem({
   );
 });
 
-// Comments Section Component (reusable for desktop sidebar and mobile drawer)
-interface CommentsSectionProps {
-  cut: Cut;
-  user: { id: string; role: string } | null;
-  selectedAudio: any;
-  selectedAudioFileId: string | null;
-  commentTimestamp: number;
-  onCommentTimestampChange: (timestamp: number) => void;
-  commentText: string;
-  isAddingComment: boolean;
-  replyingToId: string | null;
-  replyText: string;
-  isAddingReply: boolean;
-  editingCommentId: string | null;
-  editingCommentContent: string;
-  isEditingComment: boolean;
-  highlightedCommentId: string | null;
-  onCommentTextChange: (text: string) => void;
-  onAddComment: () => void;
-  onStartReply: (commentId: string) => void;
-  onCancelReply: () => void;
-  onSubmitReply: (parentId: string) => void;
-  onReplyTextChange: (text: string) => void;
-  onStartEdit: (commentId: string, content: string) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: (commentId: string) => void;
-  onEditContentChange: (content: string) => void;
-  onDeleteComment: (commentId: string) => void;
-  onCommentClick: (audioFileId: string, timestamp: number | null) => void;
-  formatTime: (seconds: number) => string;
-  threadColors?: Map<string, string>;
-}
-
-const CommentsSection = memo(function CommentsSection({
-  cut,
-  user,
-  selectedAudio,
-  selectedAudioFileId,
-  commentTimestamp,
-  onCommentTimestampChange,
-  commentText,
-  isAddingComment,
-  replyingToId,
-  replyText,
-  isAddingReply,
-  editingCommentId,
-  editingCommentContent,
-  isEditingComment,
-  highlightedCommentId,
-  onCommentTextChange,
-  onAddComment,
-  onStartReply,
-  onCancelReply,
-  onSubmitReply,
-  onReplyTextChange,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onEditContentChange,
-  onDeleteComment,
-  onCommentClick,
-  formatTime,
-  threadColors,
-}: CommentsSectionProps) {
-  return (
-    <div className="space-y-6">
-      {/* Add Comment */}
-      <Card>
-        <h3 className="font-semibold text-text mb-4">Add Comment</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-muted mb-1.5">
-              Audio File
-            </label>
-            <div className="px-3 py-2 bg-surface-light rounded text-sm">
-              {selectedAudio ? (
-                <span className="text-text text-sm">
-                  {selectedAudio.name || selectedAudio.originalName}
-                </span>
-              ) : (
-                <span className="text-muted italic text-sm">Click on an audio file to select</span>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-muted mb-1.5">
-              Timestamp
-            </label>
-            <TimeInput
-              value={formatTime(commentTimestamp)}
-              onChange={(val) => {
-                const secs = parseToSeconds(val);
-                if (secs !== null) {
-                  onCommentTimestampChange(secs);
-                }
-              }}
-              onCommitSeconds={(secs) => {
-                if (selectedAudioFileId) {
-                  onCommentClick(selectedAudioFileId, secs);
-                }
-              }}
-              className="text-center text-sm"
-            />
-            <span className="text-xs text-muted block mt-1">Click on waveform to set</span>
-          </div>
-          <Input
-            label="Comment"
-            placeholder="Add your feedback..."
-            value={commentText}
-            onChange={(e) => onCommentTextChange(e.target.value)}
-          />
-          <Button
-            onClick={onAddComment}
-            isLoading={isAddingComment}
-            disabled={!commentText.trim() || !selectedAudioFileId}
-            className="w-full"
-          >
-            Add Comment
-          </Button>
-        </div>
-      </Card>
-
-      {/* Comments Timeline */}
-      <Card>
-        <h3 className="font-semibold text-text mb-4">
-          Comments Timeline ({cut.comments?.length || 0})
-        </h3>
-        {cut.comments?.length === 0 ? (
-          <p className="text-muted text-center py-8 text-sm">No comments yet</p>
-        ) : (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-            {cut.comments?.map((comment) => (
-              <CommentItem
-                key={comment.id}
-                comment={comment}
-                cut={cut}
-                user={user}
-                selectedAudioFileId={selectedAudioFileId}
-                replyingToId={replyingToId}
-                replyText={replyText}
-                isAddingReply={isAddingReply}
-                editingCommentId={editingCommentId}
-                editingCommentContent={editingCommentContent}
-                isEditingComment={isEditingComment}
-                highlightedCommentId={highlightedCommentId}
-                onStartReply={onStartReply}
-                onCancelReply={onCancelReply}
-                onSubmitReply={onSubmitReply}
-                onReplyTextChange={onReplyTextChange}
-                onStartEdit={onStartEdit}
-                onCancelEdit={onCancelEdit}
-                onSaveEdit={onSaveEdit}
-                onEditContentChange={onEditContentChange}
-                onDeleteComment={onDeleteComment}
-                onCommentClick={onCommentClick}
-                formatTime={formatTime}
-                depth={0}
-                threadColor={threadColors?.get(comment.id)}
-              />
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-});
-
 export function CutDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, isAdmin } = useAuth();
@@ -606,13 +439,23 @@ export function CutDetail() {
   const [editingCommentContent, setEditingCommentContent] = useState('');
   const [isEditingComment, setIsEditingComment] = useState(false);
   
-  // Comments drawer state (for mobile)
-  const [isCommentsDrawerOpen, setIsCommentsDrawerOpen] = useState(false);
-
   // Deep-link: highlight a specific comment from notification
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(
     searchParams.get('comment')
   );
+  
+  // React to search param changes when already on this page (e.g. notification click while viewing manifest)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const commentParam = searchParams.get('comment');
+    
+    if (tabParam && ['manifest', 'audio', 'files', 'lyrics'].includes(tabParam)) {
+      setActiveTab(tabParam as CutTab);
+    }
+    if (commentParam) {
+      setHighlightedCommentId(commentParam);
+    }
+  }, [searchParams]);
   
   // Comment marker state - for highlighting active markers
   const [activeMarkerId] = useState<string | null>(null);
@@ -666,13 +509,8 @@ export function CutDetail() {
 
     const comment = cut.comments ? findComment(cut.comments) : undefined;
     if (comment) {
-      // Select the audio file this comment is on
+      // Select the audio file this comment is on (this also expands the accordion)
       setSelectedAudioFileId(comment.managedFileId);
-
-      // On mobile, open the comments drawer
-      if (window.innerWidth < 1024) {
-        setIsCommentsDrawerOpen(true);
-      }
 
       // Scroll to the comment element after a brief delay for render
       setTimeout(() => {
@@ -905,14 +743,19 @@ export function CutDetail() {
   };
 
   const handleMarkerClick = (audioFileId: string) => (timestamp: number) => {
-    // On desktop, scroll sidebar to first comment at this timestamp
-    if (window.innerWidth >= 1024) {
-      const comments = getCommentsForAudio(audioFileId).filter(c => c.timestamp !== null);
-      const firstComment = comments.find(c => Math.round(c.timestamp!) === timestamp);
-      if (firstComment) {
-        // Use existing comment click handler to scroll and highlight
-        handleCommentClick(audioFileId, timestamp);
-      }
+    // Select the audio file (expands accordion) and seek to the comment
+    setSelectedAudioFileId(audioFileId);
+    const comments = getCommentsForAudio(audioFileId).filter(c => c.timestamp !== null);
+    const firstComment = comments.find(c => Math.round(c.timestamp!) === timestamp);
+    if (firstComment) {
+      handleCommentClick(audioFileId, timestamp);
+      // Scroll to the comment after accordion expands
+      setTimeout(() => {
+        const el = document.getElementById(`comment-${firstComment.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
     }
   };
 
@@ -979,20 +822,10 @@ export function CutDetail() {
     }));
   }, [cut?.comments]);
 
-  // Get thread colors for all comments (used by CommentsSection)
-  const getAllThreadColors = useCallback((): Map<string, string> => {
-    if (!cut?.comments) return new Map();
-    return generateThreadColors(cut.comments);
-  }, [cut?.comments]);
-
   const getCommentsForAudio = (audioFileId: string) => {
     return cut?.comments
       ?.filter(c => c.managedFileId === audioFileId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) || [];
-  };
-
-  const getSelectedAudio = () => {
-    return cut?.managedFiles?.find(a => a.id === selectedAudioFileId);
   };
 
   // Cut action handlers
@@ -1052,8 +885,6 @@ export function CutDetail() {
       </Card>
     );
   }
-
-  const selectedAudio = getSelectedAudio();
 
   return (
     <div className="space-y-6">
@@ -1178,29 +1009,28 @@ export function CutDetail() {
 
       {/* Audio Tab Content */}
       <TabPanel id="audio" activeTab={activeTab} className="space-y-6">
-        {/* Layout wrapper - responsive grid for desktop */}
-        <div className="lg:grid lg:grid-cols-3 lg:gap-6 lg:items-start">
-          {/* Audio Files - left side on desktop, full width on mobile */}
-          <div className="lg:col-span-2 space-y-4">
-            {cut.managedFiles?.length === 0 ? (
-              <Card className="text-center py-12">
-                <svg className="w-12 h-12 text-muted mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-                <p className="text-muted">No audio files yet</p>
-                <p className="text-sm text-muted mt-1">Upload an audio file to get started</p>
-              </Card>
-            ) : (
-              cut.managedFiles?.map((audio, index) => {
-                const audioComments = getCommentsForAudio(audio.id);
-                const isSelected = selectedAudioFileId === audio.id;
-                const commentMarkers = getCommentMarkers(audio.id);
+        <div className="space-y-4 max-w-4xl">
+          {cut.managedFiles?.length === 0 ? (
+            <Card className="text-center py-12">
+              <svg className="w-12 h-12 text-muted mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <p className="text-muted">No audio files yet</p>
+              <p className="text-sm text-muted mt-1">Upload an audio file to get started</p>
+            </Card>
+          ) : (
+            cut.managedFiles?.map((audio, index) => {
+              const audioComments = getCommentsForAudio(audio.id);
+              const isSelected = selectedAudioFileId === audio.id;
+              const commentMarkers = getCommentMarkers(audio.id);
+              const audioThreadColors = generateThreadColors(audioComments);
 
-                return (
+              return (
+                <div key={audio.id} className="space-y-0">
+                  {/* Audio Card */}
                   <Card 
-                    key={audio.id} 
                     className={`space-y-3 transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-border'}`}
-                    onClick={() => setSelectedAudioFileId(audio.id)}
+                    onClick={() => setSelectedAudioFileId(isSelected ? null : audio.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -1256,9 +1086,6 @@ export function CutDetail() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                               </svg>
                             </button>
-                            <span className="text-xs text-muted ml-2">
-                              {audioComments.length} comment{audioComments.length !== 1 ? 's' : ''}
-                            </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1 mt-1">
@@ -1286,15 +1113,38 @@ export function CutDetail() {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteAudio(audio.id); }}
-                        className="flex-shrink-0 p-2 text-muted hover:text-error hover:bg-error/10 rounded transition-colors"
-                        title="Delete audio file (and its comments)"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {/* Comments count badge / toggle */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedAudioFileId(isSelected ? null : audio.id); }}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                            isSelected 
+                              ? 'bg-primary/20 text-primary' 
+                              : 'bg-surface-light text-muted hover:text-text hover:bg-surface-light/80'
+                          }`}
+                          title={isSelected ? 'Collapse comments' : 'Expand comments'}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                          </svg>
+                          {audioComments.length}
+                          <svg 
+                            className={`w-3 h-3 transition-transform duration-200 ${isSelected ? 'rotate-180' : ''}`} 
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteAudio(audio.id); }}
+                          className="flex-shrink-0 p-2 text-muted hover:text-error hover:bg-error/10 rounded transition-colors"
+                          title="Delete audio file (and its comments)"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                     <div onClick={(e) => e.stopPropagation()}>
                       <Waveform
@@ -1307,108 +1157,107 @@ export function CutDetail() {
                       />
                     </div>
                   </Card>
-                );
-              })
-            )}
-          </div>
 
-          {/* Comments Section - sticky sidebar on desktop, hidden on mobile */}
-          {cut.managedFiles && cut.managedFiles.length > 0 && (
-            <div className="hidden lg:block lg:col-span-1 lg:sticky lg:top-6">
-              <CommentsSection
-                cut={cut}
-                user={user}
-                selectedAudio={selectedAudio}
-                selectedAudioFileId={selectedAudioFileId}
-                commentTimestamp={commentTimestamp}
-                onCommentTimestampChange={setCommentTimestamp}
-                commentText={commentText}
-                isAddingComment={isAddingComment}
-                replyingToId={replyingToId}
-                replyText={replyText}
-                isAddingReply={isAddingReply}
-                editingCommentId={editingCommentId}
-                editingCommentContent={editingCommentContent}
-                isEditingComment={isEditingComment}
-                highlightedCommentId={highlightedCommentId}
-                onCommentTextChange={setCommentText}
-                onAddComment={handleAddComment}
-                onStartReply={handleStartReply}
-                onCancelReply={handleCancelReply}
-                onSubmitReply={handleSubmitReply}
-                onReplyTextChange={setReplyText}
-                onStartEdit={handleStartEditComment}
-                onCancelEdit={handleCancelEditComment}
-                onSaveEdit={handleSaveEditComment}
-                onEditContentChange={setEditingCommentContent}
-                onDeleteComment={handleDeleteComment}
-                onCommentClick={handleCommentClick}
-                formatTime={formatTime}
-                threadColors={getAllThreadColors()}
-              />
-            </div>
+                  {/* Inline Accordion Comments Section */}
+                  <AnimatePresence>
+                    {isSelected && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                      >
+                        <div className="ml-3 md:ml-5 border-l-2 border-primary/30 pl-3 md:pl-4 pt-3 pb-1 space-y-4">
+                          {/* Add Comment Form */}
+                          <Card className="!py-4">
+                            <h3 className="font-semibold text-text mb-3 text-sm">Add Comment</h3>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-muted mb-1">
+                                  Timestamp
+                                </label>
+                                <TimeInput
+                                  value={formatTime(commentTimestamp)}
+                                  onChange={(val) => {
+                                    const secs = parseToSeconds(val);
+                                    if (secs !== null) {
+                                      setCommentTimestamp(secs);
+                                    }
+                                  }}
+                                  onCommitSeconds={(secs) => {
+                                    handleCommentClick(audio.id, secs);
+                                  }}
+                                  className="text-center text-sm"
+                                />
+                                <span className="text-xs text-muted block mt-1">Click on waveform to set</span>
+                              </div>
+                              <Input
+                                label="Comment"
+                                placeholder="Add your feedback..."
+                                value={commentText}
+                                onChange={(e) => setCommentText(e.target.value)}
+                              />
+                              <Button
+                                onClick={handleAddComment}
+                                isLoading={isAddingComment}
+                                disabled={!commentText.trim()}
+                                className="w-full"
+                                size="sm"
+                              >
+                                Add Comment
+                              </Button>
+                            </div>
+                          </Card>
+
+                          {/* Comments Timeline */}
+                          {audioComments.length > 0 && (
+                            <Card className="!py-4">
+                              <h3 className="font-semibold text-text mb-3 text-sm">
+                                Comments ({audioComments.length})
+                              </h3>
+                              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                                {audioComments.map((comment) => (
+                                  <CommentItem
+                                    key={comment.id}
+                                    comment={comment}
+                                    cut={cut}
+                                    user={user}
+                                    selectedAudioFileId={selectedAudioFileId}
+                                    replyingToId={replyingToId}
+                                    replyText={replyText}
+                                    isAddingReply={isAddingReply}
+                                    editingCommentId={editingCommentId}
+                                    editingCommentContent={editingCommentContent}
+                                    isEditingComment={isEditingComment}
+                                    highlightedCommentId={highlightedCommentId}
+                                    onStartReply={handleStartReply}
+                                    onCancelReply={handleCancelReply}
+                                    onSubmitReply={handleSubmitReply}
+                                    onReplyTextChange={setReplyText}
+                                    onStartEdit={handleStartEditComment}
+                                    onCancelEdit={handleCancelEditComment}
+                                    onSaveEdit={handleSaveEditComment}
+                                    onEditContentChange={setEditingCommentContent}
+                                    onDeleteComment={handleDeleteComment}
+                                    onCommentClick={handleCommentClick}
+                                    formatTime={formatTime}
+                                    depth={0}
+                                    threadColor={audioThreadColors.get(comment.id)}
+                                  />
+                                ))}
+                              </div>
+                            </Card>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })
           )}
         </div>
-
-        {/* Floating Action Button (FAB) for mobile - only show when there are audio files */}
-        {cut.managedFiles && cut.managedFiles.length > 0 && (
-          <button
-            onClick={() => setIsCommentsDrawerOpen(true)}
-            className="lg:hidden fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-primary text-white shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center"
-            aria-label="Open comments"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-            </svg>
-            {cut.comments && cut.comments.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-6 h-6 bg-secondary text-white text-xs font-bold rounded-full flex items-center justify-center">
-                {cut.comments.length}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Comments Drawer for mobile */}
-        <Sheet open={isCommentsDrawerOpen} onOpenChange={setIsCommentsDrawerOpen}>
-          <SheetContent side="bottom" className="h-[85vh] p-0">
-            <SheetHeader className="p-6 pb-4 border-b border-border">
-              <SheetTitle>Comments</SheetTitle>
-            </SheetHeader>
-            <SheetBody className="p-6">
-              <CommentsSection
-                cut={cut}
-                user={user}
-                selectedAudio={selectedAudio}
-                selectedAudioFileId={selectedAudioFileId}
-                commentTimestamp={commentTimestamp}
-                onCommentTimestampChange={setCommentTimestamp}
-                commentText={commentText}
-                isAddingComment={isAddingComment}
-                replyingToId={replyingToId}
-                replyText={replyText}
-                isAddingReply={isAddingReply}
-                editingCommentId={editingCommentId}
-                editingCommentContent={editingCommentContent}
-                isEditingComment={isEditingComment}
-                highlightedCommentId={highlightedCommentId}
-                onCommentTextChange={setCommentText}
-                onAddComment={handleAddComment}
-                onStartReply={handleStartReply}
-                onCancelReply={handleCancelReply}
-                onSubmitReply={handleSubmitReply}
-                onReplyTextChange={setReplyText}
-                onStartEdit={handleStartEditComment}
-                onCancelEdit={handleCancelEditComment}
-                onSaveEdit={handleSaveEditComment}
-                onEditContentChange={setEditingCommentContent}
-                onDeleteComment={handleDeleteComment}
-                onCommentClick={handleCommentClick}
-                formatTime={formatTime}
-                threadColors={getAllThreadColors()}
-              />
-            </SheetBody>
-          </SheetContent>
-        </Sheet>
       </TabPanel>
 
       {/* Files Tab Content */}
