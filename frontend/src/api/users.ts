@@ -37,3 +37,32 @@ export async function updateUser(
 export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/users/${id}`);
 }
+
+export interface TestEmailResponse {
+  message: string;
+  sent: boolean;
+  recipient: string;
+  emailEnabled: boolean;
+}
+
+export async function sendTestEmail(data: {
+  to?: string;
+  subject?: string;
+  message?: string;
+}): Promise<TestEmailResponse> {
+  const response = await api.post<TestEmailResponse>('/users/test-email', data);
+  return response.data;
+}
+
+export interface TriggerDigestsResponse {
+  message: string;
+  processed: number;
+  failed: number;
+  totalRecipients: number;
+  totalItems: number;
+}
+
+export async function triggerAllDigests(): Promise<TriggerDigestsResponse> {
+  const response = await api.post<TriggerDigestsResponse>('/users/trigger-digests');
+  return response.data;
+}

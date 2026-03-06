@@ -5,6 +5,10 @@ const prisma = new PrismaClient();
 
 beforeAll(async () => {
   // Clean database before tests (order matters due to foreign keys)
+  await prisma.digestItem.deleteMany();
+  await prisma.digestRun.deleteMany();
+  await prisma.projectMemberDigestPreference.deleteMany();
+  await prisma.projectDigestConfig.deleteMany();
   await prisma.activityRead.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.invitation.deleteMany();

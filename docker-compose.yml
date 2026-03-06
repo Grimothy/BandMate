@@ -34,6 +34,7 @@ services:
 
       # Reverse Proxy: Set to your public URL if behind nginx/traefik/etc
       - APP_URL=${APP_URL:-http://localhost:3000}
+      - TRUST_PROXY=${TRUST_PROXY:-1}
 
       # Optional: Email notifications
       # - EMAIL_ENABLED=true

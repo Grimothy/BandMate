@@ -7,6 +7,14 @@ import { generateUniqueSlug } from '../utils/slug';
 import { createNotification } from '../services/notifications';
 import { createActivity } from '../services/activities';
 import { addUserToProjectRoom, removeUserFromProjectRoom, addAdminsToProjectRoom } from '../services/socket';
+import { checkProjectAccess } from '../services/access';
+import {
+  ALLOWED_DIGEST_FREQUENCIES,
+  getOrCreateProjectDigestConfig,
+  getProjectMemberDigestPreference,
+  setProjectMemberDigestOptOut,
+  updateProjectDigestConfig,
+} from '../services/digests';
 import prisma from '../lib/prisma';
 import path from 'path';
 
@@ -378,7 +386,6 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
       title: 'Added to Project',
       message: `You have been added to the project "${project.name}".`,
       resourceLink: `/projects/${project.id}`,
-      sendEmail: true, // Always send email for project invites
     });
 
     // Create activity entry
@@ -400,6 +407,113 @@ router.post('/:id/members', adminMiddleware, async (req: AuthRequest, res: Respo
   } catch (error) {
     console.error('Add member error:', error);
     res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+// Get project digest settings (admins only)
+router.get('/:id/digest-settings', adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const projectId = req.params.id;
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    const digestConfig = await getOrCreateProjectDigestConfig(projectId);
+    res.json(digestConfig);
+  } catch (error) {
+    console.error('Get digest settings error:', error);
+    res.status(500).json({ error: 'Failed to get digest settings' });
+  }
+});
+
+// Update project digest settings (admins only)
+router.put('/:id/digest-settings', adminMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const projectId = req.params.id;
+    const { enabled, frequencyMinutes } = req.body as { enabled?: boolean; frequencyMinutes?: number };
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: 'Project not found' });
+      return;
+    }
+
+    if (
+      frequencyMinutes !== undefined &&
+      !ALLOWED_DIGEST_FREQUENCIES.includes(frequencyMinutes as (typeof ALLOWED_DIGEST_FREQUENCIES)[number])
+    ) {
+      res.status(400).json({
+        error: `Invalid frequencyMinutes. Allowed values: ${ALLOWED_DIGEST_FREQUENCIES.join(', ')}`,
+      });
+      return;
+    }
+
+    const updated = await updateProjectDigestConfig(projectId, {
+      enabled,
+      frequencyMinutes,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Update digest settings error:', error);
+    res.status(500).json({ error: 'Failed to update digest settings' });
+  }
+});
+
+// Get current user's digest preference for a project
+router.get('/:id/digest-preference/me', async (req: AuthRequest, res: Response) => {
+  try {
+    const projectId = req.params.id;
+    const user = req.user!;
+
+    const hasAccess = await checkProjectAccess(user.id, user.role, projectId);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const preference = await getProjectMemberDigestPreference(projectId, user.id);
+    res.json(preference);
+  } catch (error) {
+    console.error('Get digest preference error:', error);
+    res.status(500).json({ error: 'Failed to get digest preference' });
+  }
+});
+
+// Update current user's digest preference for a project
+router.put('/:id/digest-preference/me', async (req: AuthRequest, res: Response) => {
+  try {
+    const projectId = req.params.id;
+    const user = req.user!;
+    const { optedOut } = req.body as { optedOut?: boolean };
+
+    if (typeof optedOut !== 'boolean') {
+      res.status(400).json({ error: 'optedOut (boolean) is required' });
+      return;
+    }
+
+    const hasAccess = await checkProjectAccess(user.id, user.role, projectId);
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const preference = await setProjectMemberDigestOptOut(projectId, user.id, optedOut);
+    res.json({ optedOut: preference.optedOut });
+  } catch (error) {
+    console.error('Update digest preference error:', error);
+    res.status(500).json({ error: 'Failed to update digest preference' });
   }
 });
 

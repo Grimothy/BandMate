@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Vibe, Cut } from '../../types';
 import { Card, CardImage } from '../ui/Card';
 import { ActionSheet } from '../ui/ActionMenu';
-import { SideSheet } from '../ui/Modal';
+import { SideSheet, ConfirmationModal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { ImageUploadSheet } from '../files/ImageUploadSheet';
@@ -146,8 +146,22 @@ export function VibeCard({
     theme: vibe.theme || '',
     notes: vibe.notes || '',
   });
+  const [showDuplicateCutWarning, setShowDuplicateCutWarning] = useState(false);
+  const [showRenameCutModal, setShowRenameCutModal] = useState(false);
+  const [renameCutName, setRenameCutName] = useState('');
+  const [showRenameDuplicateWarning, setShowRenameDuplicateWarning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Check if a cut name already exists anywhere in the project
+  const findDuplicateCut = (name: string, excludeCutId?: string): { cut: Cut; vibeName: string } | null => {
+    const trimmed = name.trim().toLowerCase();
+    for (const v of allVibes || [vibe]) {
+      const match = v.cuts?.find(c => c.name.toLowerCase() === trimmed && c.id !== excludeCutId);
+      if (match) return { cut: match, vibeName: v.name };
+    }
+    return null;
+  };
 
   const handleAddCut = async () => {
     if (!cutName.trim()) {
@@ -155,6 +169,17 @@ export function VibeCard({
       return;
     }
 
+    // Check for duplicate name across the project
+    const duplicate = findDuplicateCut(cutName);
+    if (duplicate && !showDuplicateCutWarning) {
+      setShowDuplicateCutWarning(true);
+      return;
+    }
+
+    await submitCut();
+  };
+
+  const submitCut = async () => {
     setIsSubmitting(true);
     setError('');
 
@@ -167,6 +192,7 @@ export function VibeCard({
       setCutBpm('');
       setCutTimeSignature('');
       setShowAddCutModal(false);
+      setShowDuplicateCutWarning(false);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Failed to create cut');
@@ -210,6 +236,50 @@ export function VibeCard({
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Failed to update cut');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenRenameCut = (cut: Cut) => {
+    setEditingCut(cut);
+    setRenameCutName(cut.name);
+    setShowRenameCutModal(true);
+  };
+
+  const handleRenameCut = async () => {
+    if (!editingCut || !renameCutName.trim()) {
+      setError('Cut name is required');
+      return;
+    }
+
+    // Check for duplicate name across the project (excluding the current cut)
+    if (renameCutName.trim().toLowerCase() !== editingCut.name.toLowerCase()) {
+      const duplicate = findDuplicateCut(renameCutName, editingCut.id);
+      if (duplicate && !showRenameDuplicateWarning) {
+        setShowRenameDuplicateWarning(true);
+        return;
+      }
+    }
+
+    await submitRenameCut();
+  };
+
+  const submitRenameCut = async () => {
+    if (!editingCut || !renameCutName.trim()) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await onUpdateCut(editingCut.id, { name: renameCutName });
+      setShowRenameCutModal(false);
+      setShowRenameDuplicateWarning(false);
+      setEditingCut(null);
+      setRenameCutName('');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || 'Failed to rename cut');
     } finally {
       setIsSubmitting(false);
     }
@@ -417,6 +487,7 @@ export function VibeCard({
           setShowAddCutModal(false);
           setCutName('');
           setError('');
+          setShowDuplicateCutWarning(false);
         }}
         title="Add New Cut"
         description="Create a new cut in this vibe"
@@ -445,6 +516,35 @@ export function VibeCard({
           />
         </div>
       </SideSheet>
+
+      {/* Duplicate Cut Name Warning */}
+      <ConfirmationModal
+        isOpen={showDuplicateCutWarning}
+        onClose={() => setShowDuplicateCutWarning(false)}
+        title="Duplicate Cut Name"
+        description="A cut with this name already exists"
+      >
+        <div className="space-y-4">
+          <p className="text-muted">
+            A cut named{' '}
+            <span className="text-text font-medium">"{cutName.trim()}"</span>{' '}
+            already exists in the{' '}
+            <span className="text-text font-medium">
+              "{findDuplicateCut(cutName)?.vibeName}"
+            </span>{' '}
+            vibe. Are you sure you want to continue?
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowDuplicateCutWarning(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={submitCut} isLoading={isSubmitting}>
+              Create Anyway
+            </Button>
+          </div>
+        </div>
+      </ConfirmationModal>
 
       {/* Edit Vibe Side Sheet */}
       <SideSheet
@@ -614,6 +714,27 @@ export function VibeCard({
             </div>
           </button>
 
+          {/* Rename Cut */}
+          <button
+            onClick={() => {
+              if (selectedCut) {
+                handleOpenRenameCut(selectedCut);
+                handleCloseCutActions();
+              }
+            }}
+            className="flex items-center gap-4 w-full p-4 rounded-lg bg-surface-light hover:bg-primary/10 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-text">Rename Cut</p>
+              <p className="text-sm text-muted">Change the name of this cut</p>
+            </div>
+          </button>
+
           {/* Move Cut to Another Vibe */}
           {onMoveCut && otherVibes.length > 0 && (
             <button
@@ -743,6 +864,73 @@ export function VibeCard({
           {error && <p className="text-error text-sm">{error}</p>}
         </div>
       </SideSheet>
+
+      {/* Rename Cut Side Sheet */}
+      <SideSheet
+        isOpen={showRenameCutModal}
+        onClose={() => {
+          setShowRenameCutModal(false);
+          setEditingCut(null);
+          setRenameCutName('');
+          setError('');
+          setShowRenameDuplicateWarning(false);
+        }}
+        title="Rename Cut"
+        description={editingCut ? `Rename "${editingCut.name}"` : ''}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowRenameCutModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameCut} isLoading={isSubmitting}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Cut Name"
+            placeholder="Enter cut name"
+            value={renameCutName}
+            onChange={(e) => setRenameCutName(e.target.value)}
+            error={error}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameCut();
+            }}
+          />
+        </div>
+      </SideSheet>
+
+      {/* Rename Duplicate Cut Name Warning */}
+      <ConfirmationModal
+        isOpen={showRenameDuplicateWarning}
+        onClose={() => setShowRenameDuplicateWarning(false)}
+        title="Duplicate Cut Name"
+        description="A cut with this name already exists"
+      >
+        <div className="space-y-4">
+          <p className="text-muted">
+            A cut named{' '}
+            <span className="text-text font-medium">"{renameCutName.trim()}"</span>{' '}
+            already exists in the{' '}
+            <span className="text-text font-medium">
+              "{findDuplicateCut(renameCutName, editingCut?.id)?.vibeName}"
+            </span>{' '}
+            vibe. Are you sure you want to continue?
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowRenameDuplicateWarning(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={submitRenameCut} isLoading={isSubmitting}>
+              Rename Anyway
+            </Button>
+          </div>
+        </div>
+      </ConfirmationModal>
     </>
   );
 }

@@ -1,6 +1,5 @@
 import { Notification } from '@prisma/client';
-import { emitToUser, isUserOnline } from './socket';
-import { sendNotificationEmail } from './email';
+import { emitToUser } from './socket';
 import prisma from '../lib/prisma';
 
 export type NotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
@@ -11,7 +10,7 @@ export interface CreateNotificationOptions {
   title: string;
   message: string;
   resourceLink?: string;
-  sendEmail?: boolean; // If true, will send email regardless of online status
+  sendEmail?: boolean;
 }
 
 export interface NotificationPayload {
@@ -35,7 +34,7 @@ export interface NotificationPayload {
 export async function createNotification(
   options: CreateNotificationOptions
 ): Promise<Notification> {
-  const { recipientId, type, title, message, resourceLink, sendEmail = false } = options;
+  const { recipientId, type, title, message, resourceLink } = options;
 
   // 1. Create database record
   const notification = await prisma.notification.create({
@@ -61,35 +60,6 @@ export async function createNotification(
 
   // 3. Emit real-time notification
   emitToUser(recipientId, 'notification', payload);
-
-  // 4. Send email if requested or if user is offline
-  const userOnline = isUserOnline(recipientId);
-  const shouldSendEmail = sendEmail || !userOnline;
-
-  if (shouldSendEmail) {
-    // Fetch user email
-    const user = await prisma.user.findUnique({
-      where: { id: recipientId },
-      select: { email: true },
-    });
-
-    if (user) {
-      const emailSent = await sendNotificationEmail(
-        user.email,
-        title,
-        message,
-        resourceLink
-      );
-
-      // Update notification record
-      if (emailSent) {
-        await prisma.notification.update({
-          where: { id: notification.id },
-          data: { emailSent: true },
-        });
-      }
-    }
-  }
 
   console.log(`[Notification] Created notification for user ${recipientId}: ${title}`);
   return notification;

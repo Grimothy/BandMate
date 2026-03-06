@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getUsers, createUser, updateUser, deleteUser } from '../../api/users';
+import { getUsers, createUser, updateUser, deleteUser, sendTestEmail, triggerAllDigests } from '../../api/users';
 import { createInvitation, listInvitations, revokeInvitation, PendingInvitation } from '../../api/invitations';
 import { getProjects } from '../../api/projects';
 import { User, Project } from '../../types';
@@ -35,6 +35,11 @@ export function Users() {
   const [inviteLink, setInviteLink] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testEmailStatus, setTestEmailStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [digestStatus, setDigestStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isTriggeringDigests, setIsTriggeringDigests] = useState(false);
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -177,6 +182,54 @@ export function Users() {
     navigator.clipboard.writeText(inviteLink);
   };
 
+  const handleSendTestEmail = async () => {
+    setIsSendingTestEmail(true);
+    setTestEmailStatus(null);
+
+    try {
+      const response = await sendTestEmail({
+        to: testEmailTo.trim() || undefined,
+      });
+
+      setTestEmailStatus({
+        type: response.sent ? 'success' : 'error',
+        message: response.sent
+          ? `Test email sent to ${response.recipient}`
+          : response.message,
+      });
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setTestEmailStatus({
+        type: 'error',
+        message: apiError.response?.data?.error || 'Failed to send test email',
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
+  const handleTriggerDigests = async () => {
+    setIsTriggeringDigests(true);
+    setDigestStatus(null);
+
+    try {
+      const response = await triggerAllDigests();
+
+      setDigestStatus({
+        type: 'success',
+        message: `${response.message} – Sent ${response.totalItems} item(s) to ${response.totalRecipients} recipient(s)`,
+      });
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setDigestStatus({
+        type: 'error',
+        message: apiError.response?.data?.error || 'Failed to trigger digests',
+      });
+    } finally {
+      setIsTriggeringDigests(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -199,6 +252,55 @@ export function Users() {
             New User
           </Button>
         </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-text">Send Test Email</h2>
+              <p className="text-sm text-muted mt-1">Admin-only SMTP test. Leave recipient blank to send to your admin account.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Input
+                type="email"
+                placeholder="recipient@example.com (optional)"
+                value={testEmailTo}
+                onChange={(e) => setTestEmailTo(e.target.value)}
+              />
+              <Button onClick={handleSendTestEmail} isLoading={isSendingTestEmail}>
+                Send Test Email
+              </Button>
+            </div>
+            {testEmailStatus && (
+              <p className={`text-sm ${testEmailStatus.type === 'success' ? 'text-primary' : 'text-error'}`}>
+                {testEmailStatus.message}
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex flex-col gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-text">Trigger Digest Emails</h2>
+              <p className="text-sm text-muted mt-1">Manually send digest emails for all enabled projects right now.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleTriggerDigests} isLoading={isTriggeringDigests}>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Trigger All Digests
+              </Button>
+            </div>
+            {digestStatus && (
+              <p className={`text-sm ${digestStatus.type === 'success' ? 'text-primary' : 'text-error'}`}>
+                {digestStatus.message}
+              </p>
+            )}
+          </div>
+        </Card>
       </div>
 
       {/* Users List */}

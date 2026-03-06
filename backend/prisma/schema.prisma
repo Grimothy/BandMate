@@ -26,6 +26,8 @@ model User {
   notifications Notification[]
   invitations   Invitation[]
   activities    Activity[]
+  digestPreferences ProjectMemberDigestPreference[]
+  digestItems   DigestItem[]
 
   @@index([authProvider, providerId])
 }
@@ -41,6 +43,10 @@ model Project {
   members    ProjectMember[]
   vibes      Vibe[]
   activities Activity[]
+  digestConfig ProjectDigestConfig?
+  digestPreferences ProjectMemberDigestPreference[]
+  digestRuns DigestRun[]
+  digestItems DigestItem[]
 }
 
 model ProjectMember {
@@ -202,9 +208,77 @@ model Activity {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   reads   ActivityRead[]
+  digestItems DigestItem[]
 
   @@index([projectId, createdAt])
   @@index([userId])
+}
+
+model ProjectDigestConfig {
+  id               String   @id @default(uuid())
+  projectId        String   @unique
+  enabled          Boolean  @default(false)
+  frequencyMinutes Int      @default(1440)
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, nextRunAt])
+}
+
+model ProjectMemberDigestPreference {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  optedOut  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model DigestRun {
+  id                 String   @id @default(uuid())
+  projectId          String
+  windowStart        DateTime
+  windowEnd          DateTime
+  status             String   @default("RUNNING") // RUNNING, COMPLETED, FAILED
+  candidateCount     Int      @default(0)
+  deliveredItemCount Int      @default(0)
+  recipientCount     Int      @default(0)
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items   DigestItem[]
+
+  @@index([projectId, createdAt])
+}
+
+model DigestItem {
+  id          String   @id @default(uuid())
+  digestRunId String
+  recipientId String
+  projectId   String
+  activityId  String
+  createdAt   DateTime @default(now())
+
+  digestRun DigestRun @relation(fields: [digestRunId], references: [id], onDelete: Cascade)
+  recipient User      @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activity  Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientId, projectId, activityId])
+  @@index([projectId, recipientId, createdAt])
+  @@index([digestRunId])
 }
 
 // Track which activities have been read/dismissed by which users

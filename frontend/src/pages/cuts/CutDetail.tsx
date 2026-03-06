@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { getCut, uploadAudio, deleteAudio, updateAudioLabel, addComment, deleteComment, addReply, updateComment, updateCut, deleteCut } from '../../api/cuts';
+import { getProject } from '../../api/projects';
 import { uploadCut, uploadStem } from '../../api/files';
 import { useAuth } from '../../hooks/useAuth';
 import { Cut, Comment } from '../../types';
@@ -469,6 +470,8 @@ export function CutDetail() {
   const [editCutTimeSignature, setEditCutTimeSignature] = useState<string>('');
   const [isUpdatingCut, setIsUpdatingCut] = useState(false);
   const [isDeletingCut, setIsDeletingCut] = useState(false);
+  const [showDuplicateCutWarning, setShowDuplicateCutWarning] = useState(false);
+  const [projectVibes, setProjectVibes] = useState<import('../../types').Vibe[]>([]);
 
   const fetchCut = async () => {
     if (!id) return;
@@ -829,16 +832,50 @@ export function CutDetail() {
   };
 
   // Cut action handlers
-  const handleOpenEditModal = () => {
+  const handleOpenEditModal = async () => {
     if (cut) {
       setEditCutName(cut.name);
       setEditCutBpm(cut.bpm?.toString() || '');
       setEditCutTimeSignature(cut.timeSignature || '');
       setShowEditModal(true);
+      // Fetch project vibes for duplicate name detection
+      if (cut.vibe?.project?.id) {
+        try {
+          const project = await getProject(cut.vibe.project.id);
+          setProjectVibes(project.vibes || []);
+        } catch (err) {
+          console.error('Failed to fetch project vibes:', err);
+        }
+      }
     }
   };
 
+  // Check if a cut name already exists anywhere in the project (excluding current cut)
+  const findDuplicateCutInProject = (name: string): { cutName: string; vibeName: string } | null => {
+    const trimmed = name.trim().toLowerCase();
+    for (const v of projectVibes) {
+      const match = v.cuts?.find(c => c.name.toLowerCase() === trimmed && c.id !== id);
+      if (match) return { cutName: match.name, vibeName: v.name };
+    }
+    return null;
+  };
+
   const handleSaveCutEdit = async () => {
+    if (!id || !editCutName.trim()) return;
+
+    // Check for duplicate name if the name changed
+    if (cut && editCutName.trim().toLowerCase() !== cut.name.toLowerCase()) {
+      const duplicate = findDuplicateCutInProject(editCutName);
+      if (duplicate && !showDuplicateCutWarning) {
+        setShowDuplicateCutWarning(true);
+        return;
+      }
+    }
+
+    await submitCutEdit();
+  };
+
+  const submitCutEdit = async () => {
     if (!id || !editCutName.trim()) return;
     
     setIsUpdatingCut(true);
@@ -849,6 +886,7 @@ export function CutDetail() {
         timeSignature: editCutTimeSignature || null,
       });
       setShowEditModal(false);
+      setShowDuplicateCutWarning(false);
       fetchCut();
     } catch (error) {
       console.error('Failed to update cut:', error);
@@ -1410,6 +1448,35 @@ export function CutDetail() {
             </Button>
             <Button variant="danger" onClick={handleDeleteCut} isLoading={isDeletingCut}>
               Delete Cut
+            </Button>
+          </div>
+        </div>
+      </ConfirmationModal>
+
+      {/* Duplicate Cut Name Warning */}
+      <ConfirmationModal
+        isOpen={showDuplicateCutWarning}
+        onClose={() => setShowDuplicateCutWarning(false)}
+        title="Duplicate Cut Name"
+        description="A cut with this name already exists"
+      >
+        <div className="space-y-4">
+          <p className="text-muted">
+            A cut named{' '}
+            <span className="text-text font-medium">"{editCutName.trim()}"</span>{' '}
+            already exists in the{' '}
+            <span className="text-text font-medium">
+              "{findDuplicateCutInProject(editCutName)?.vibeName}"
+            </span>{' '}
+            vibe. Are you sure you want to continue?
+          </p>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setShowDuplicateCutWarning(false)} disabled={isUpdatingCut}>
+              Cancel
+            </Button>
+            <Button onClick={submitCutEdit} isLoading={isUpdatingCut}>
+              Save Anyway
             </Button>
           </div>
         </div>

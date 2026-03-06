@@ -1,5 +1,5 @@
 import api from './client';
-import { Project, ProjectMember } from '../types';
+import { Project, ProjectDigestConfig, ProjectDigestPreference, ProjectMember } from '../types';
 
 export async function getProjects(): Promise<Project[]> {
   const response = await api.get<Project[]>('/projects');
@@ -48,4 +48,32 @@ export async function addProjectMember(
 
 export async function removeProjectMember(projectId: string, userId: string): Promise<void> {
   await api.delete(`/projects/${projectId}/members/${userId}`);
+}
+
+export async function getProjectDigestSettings(projectId: string): Promise<ProjectDigestConfig> {
+  const response = await api.get<ProjectDigestConfig>(`/projects/${projectId}/digest-settings`);
+  return response.data;
+}
+
+export async function updateProjectDigestSettings(
+  projectId: string,
+  data: { enabled?: boolean; frequencyMinutes?: number }
+): Promise<ProjectDigestConfig> {
+  const response = await api.put<ProjectDigestConfig>(`/projects/${projectId}/digest-settings`, data);
+  return response.data;
+}
+
+export async function getMyProjectDigestPreference(projectId: string): Promise<ProjectDigestPreference> {
+  const response = await api.get<ProjectDigestPreference>(`/projects/${projectId}/digest-preference/me`);
+  return response.data;
+}
+
+export async function updateMyProjectDigestPreference(
+  projectId: string,
+  optedOut: boolean
+): Promise<ProjectDigestPreference> {
+  const response = await api.put<ProjectDigestPreference>(`/projects/${projectId}/digest-preference/me`, {
+    optedOut,
+  });
+  return response.data;
 }

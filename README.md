@@ -140,6 +140,8 @@ Example for a reverse proxy setup:
 
 ### Email Notifications (Optional)
 
+BandMate sends project emails as digest summaries only (no one-off immediate notification emails).
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `EMAIL_ENABLED` | `false` | Set to `true` to enable |
@@ -149,6 +151,11 @@ Example for a reverse proxy setup:
 | `EMAIL_USER` | - | SMTP username |
 | `EMAIL_PASS` | - | SMTP password |
 | `EMAIL_FROM` | `BandMate <noreply@bandmate.local>` | Sender address |
+| `DIGEST_POLL_INTERVAL_MS` | `60000` | How often backend checks for due project digests |
+
+Project digest controls:
+- Admins configure per-project digest settings via `GET/PUT /api/projects/:id/digest-settings`
+- Members can opt out per project via `GET/PUT /api/projects/:id/digest-preference/me`
 
 ### Google OAuth (Optional)
 

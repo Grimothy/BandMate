@@ -29,6 +29,21 @@ export interface Project {
   vibes: Vibe[];
 }
 
+export interface ProjectDigestConfig {
+  id: string;
+  projectId: string;
+  enabled: boolean;
+  frequencyMinutes: number;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDigestPreference {
+  optedOut: boolean;
+}
+
 export interface Vibe {
   id: string;
   name: string;

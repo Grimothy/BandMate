@@ -3,12 +3,77 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/admin';
 import { hashPassword } from '../utils/password';
 import prisma from '../lib/prisma';
+import { sendNotificationEmail } from '../services/email';
+import { config } from '../config/env';
+import { manuallyTriggerAllDigests } from '../services/digests';
 
 const router = Router();
 
 // All routes require authentication and admin role
 router.use(authMiddleware);
 router.use(adminMiddleware);
+
+// Send test email (admin only)
+router.post('/test-email', async (req: AuthRequest, res: Response) => {
+  try {
+    const { to, subject, message } = req.body ?? {};
+
+    const recipient = typeof to === 'string' && to.trim().length > 0
+      ? to.trim()
+      : req.user?.email;
+
+    if (!recipient) {
+      res.status(400).json({ error: 'Recipient email is required' });
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(recipient)) {
+      res.status(400).json({ error: 'Invalid recipient email' });
+      return;
+    }
+
+    const finalSubject = typeof subject === 'string' && subject.trim().length > 0
+      ? subject.trim()
+      : 'BandMate Admin Email Test';
+
+    const finalMessage = typeof message === 'string' && message.trim().length > 0
+      ? message.trim()
+      : 'This is a test email sent from the BandMate admin endpoint. If you received this, SMTP is configured correctly.';
+
+    const sent = await sendNotificationEmail(
+      recipient,
+      finalSubject,
+      `${finalMessage}\n\nSent by: ${req.user?.name || 'Admin'} (${req.user?.email || 'unknown'})`,
+      '/projects'
+    );
+
+    res.json({
+      message: sent ? 'Test email sent' : 'Email sending disabled or failed',
+      sent,
+      recipient,
+      emailEnabled: config.email.enabled,
+    });
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({ error: 'Failed to send test email' });
+  }
+});
+
+// Manually trigger all digest emails (admin only)
+router.post('/trigger-digests', async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await manuallyTriggerAllDigests();
+
+    res.json({
+      message: `Processed ${result.processed} digest(s)`,
+      ...result,
+    });
+  } catch (error) {
+    console.error('Manual digest trigger error:', error);
+    res.status(500).json({ error: 'Failed to trigger digests' });
+  }
+});
 
 // List all users
 router.get('/', async (_req: AuthRequest, res: Response) => {

@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { getProject, uploadProjectImage, addProjectMember, removeProjectMember } from '../../api/projects';
+import {
+  getMyProjectDigestPreference,
+  getProject,
+  getProjectDigestSettings,
+  updateMyProjectDigestPreference,
+  updateProjectDigestSettings,
+  uploadProjectImage,
+  addProjectMember,
+  removeProjectMember,
+} from '../../api/projects';
 import { createVibe, deleteVibe, updateVibe, uploadVibeImage } from '../../api/vibes';
 import { createCut, deleteCut, reorderCuts, updateCut, moveCut } from '../../api/cuts';
 import { getUsers } from '../../api/users';
-import { Project, User, Cut } from '../../types';
+import { Project, User, Cut, ProjectDigestConfig } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Card, CardImage } from '../../components/ui/Card';
 import { SideSheet } from '../../components/ui/Modal';
@@ -30,6 +39,17 @@ export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+
+  const digestFrequencyOptions = [
+    { value: 15, label: 'Every 15 minutes' },
+    { value: 30, label: 'Every 30 minutes' },
+    { value: 60, label: 'Hourly' },
+    { value: 180, label: 'Every 3 hours' },
+    { value: 360, label: 'Every 6 hours' },
+    { value: 720, label: 'Every 12 hours' },
+    { value: 1440, label: 'Daily' },
+    { value: 10080, label: 'Weekly' },
+  ];
   
   // Drag and drop sensors
   const sensors = useSensors(
@@ -54,6 +74,13 @@ export function ProjectDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [activeDragCut, setActiveDragCut] = useState<Cut | null>(null);
+  const [digestConfig, setDigestConfig] = useState<ProjectDigestConfig | null>(null);
+  const [digestEnabledDraft, setDigestEnabledDraft] = useState(false);
+  const [digestFrequencyDraft, setDigestFrequencyDraft] = useState(1440);
+  const [digestOptedOut, setDigestOptedOut] = useState(false);
+  const [isDigestSaving, setIsDigestSaving] = useState(false);
+  const [isDigestPrefSaving, setIsDigestPrefSaving] = useState(false);
+  const [digestError, setDigestError] = useState('');
 
   const fetchProject = async () => {
     if (!id) return;
@@ -68,6 +95,28 @@ export function ProjectDetail() {
     }
   };
 
+  const fetchDigestData = async () => {
+    if (!id) return;
+
+    try {
+      const preference = await getMyProjectDigestPreference(id);
+      setDigestOptedOut(preference.optedOut);
+    } catch (err) {
+      console.error('Failed to fetch digest preference:', err);
+    }
+
+    if (isAdmin) {
+      try {
+        const config = await getProjectDigestSettings(id);
+        setDigestConfig(config);
+        setDigestEnabledDraft(config.enabled);
+        setDigestFrequencyDraft(config.frequencyMinutes);
+      } catch (err) {
+        console.error('Failed to fetch digest settings:', err);
+      }
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       const data = await getUsers();
@@ -79,7 +128,43 @@ export function ProjectDetail() {
 
   useEffect(() => {
     fetchProject();
-  }, [id]);
+    fetchDigestData();
+  }, [id, isAdmin]);
+
+  const handleSaveDigestSettings = async () => {
+    if (!id || !isAdmin) return;
+
+    setIsDigestSaving(true);
+    setDigestError('');
+    try {
+      const updated = await updateProjectDigestSettings(id, {
+        enabled: digestEnabledDraft,
+        frequencyMinutes: digestFrequencyDraft,
+      });
+      setDigestConfig(updated);
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setDigestError(apiError.response?.data?.error || 'Failed to update digest settings');
+    } finally {
+      setIsDigestSaving(false);
+    }
+  };
+
+  const handleUpdateDigestPreference = async (optedOut: boolean) => {
+    if (!id) return;
+
+    setIsDigestPrefSaving(true);
+    setDigestError('');
+    try {
+      const updated = await updateMyProjectDigestPreference(id, optedOut);
+      setDigestOptedOut(updated.optedOut);
+    } catch (err: unknown) {
+      const apiError = err as { response?: { data?: { error?: string } } };
+      setDigestError(apiError.response?.data?.error || 'Failed to update digest preference');
+    } finally {
+      setIsDigestPrefSaving(false);
+    }
+  };
 
   const handleImageUpload = async (file: File) => {
     if (!id) return;
@@ -402,6 +487,121 @@ export function ProjectDetail() {
                 <span className="text-sm text-muted">No members yet</span>
               )}
             </div>
+          </div>
+
+          {/* Email Digest Preferences */}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <h3 className="text-sm font-semibold text-text tracking-wide uppercase">Email Digests</h3>
+            </div>
+
+            {/* Member opt-out toggle */}
+            <button
+              onClick={() => handleUpdateDigestPreference(!digestOptedOut)}
+              disabled={isDigestPrefSaving}
+              className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border transition-colors ${
+                digestOptedOut
+                  ? 'border-border bg-surface-light/50'
+                  : 'border-primary/30 bg-primary/5'
+              } ${isDigestPrefSaving ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50 cursor-pointer'}`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
+                  digestOptedOut ? 'bg-surface-light border border-border' : 'bg-primary'
+                }`}>
+                  {!digestOptedOut && (
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-medium text-text">Receive digest emails</p>
+                  <p className="text-xs text-muted mt-0.5">Get periodic summaries of project activity</p>
+                </div>
+              </div>
+              {isDigestPrefSaving && (
+                <svg className="w-4 h-4 text-muted animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+            </button>
+
+            {/* Admin settings */}
+            {isAdmin && (
+              <Card className="mt-3 p-0 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border bg-surface-light/30">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-muted uppercase tracking-wide">Admin Settings</span>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Enable/disable toggle */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-text">Enable digest emails</p>
+                      <p className="text-xs text-muted mt-0.5">Send activity summaries to project members</p>
+                    </div>
+                    <button
+                      onClick={() => setDigestEnabledDraft(!digestEnabledDraft)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                        digestEnabledDraft ? 'bg-primary' : 'bg-surface-light'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                        digestEnabledDraft ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {/* Frequency selector */}
+                  <div>
+                    <label className="block text-sm font-medium text-muted mb-1.5">Frequency</label>
+                    <select
+                      value={digestFrequencyDraft}
+                      onChange={(e) => setDigestFrequencyDraft(Number(e.target.value))}
+                      className="w-full h-9 rounded-md border border-input bg-secondary px-3 py-1 text-sm text-foreground shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {digestFrequencyOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Next run info + save */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <p className="text-xs text-muted">
+                      {digestConfig?.nextRunAt
+                        ? <>Next run: <span className="text-text">{new Date(digestConfig.nextRunAt).toLocaleString()}</span></>
+                        : 'Not scheduled'
+                      }
+                    </p>
+                    <Button size="sm" onClick={handleSaveDigestSettings} isLoading={isDigestSaving}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {digestError && (
+              <p className="text-destructive text-sm mt-2 flex items-center gap-1.5">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {digestError}
+              </p>
+            )}
           </div>
         </div>
       </div>

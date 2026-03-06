@@ -9,9 +9,12 @@ import { errorHandler, notFoundHandler } from './middleware/error';
 import { cleanupExpiredTokens } from './services/auth';
 import { initializeSocket } from './services/socket';
 import { cleanupOldNotifications } from './services/notifications';
+import { processDueProjectDigests } from './services/digests';
 
 const app = express();
 const httpServer = createServer(app);
+
+app.set('trust proxy', config.trustProxy);
 
 // Initialize Socket.io
 initializeSocket(httpServer);
@@ -59,10 +62,16 @@ setInterval(() => {
   cleanupOldNotifications(30).catch(console.error);
 }, 24 * 60 * 60 * 1000);
 
+// Process due project digest emails
+setInterval(() => {
+  processDueProjectDigests().catch(console.error);
+}, config.digest.pollIntervalMs);
+
 // Start server
 httpServer.listen(config.port, () => {
   console.log(`BandMate server running on port ${config.port}`);
   console.log(`Environment: ${config.nodeEnv}`);
+  console.log(`Trust proxy: ${String(config.trustProxy)}`);
 });
 
 export default app;
