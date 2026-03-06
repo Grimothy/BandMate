@@ -23,8 +23,20 @@ jobs:
         working-directory: ./backend
         run: npm ci
       
+      - name: Setup Test Database
+        working-directory: ./backend
+        env:
+          DATABASE_URL: file:./test.db
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+      
       - name: Run Backend Tests
         working-directory: ./backend
+        env:
+          DATABASE_URL: file:./test.db
+          JWT_ACCESS_SECRET: test-secret
+          JWT_REFRESH_SECRET: test-refresh-secret
         run: npm test
       
       - name: Install Frontend Dependencies

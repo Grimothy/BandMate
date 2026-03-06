@@ -42,6 +42,11 @@ jobs:
           # Strip v/V prefix from tag
           VERSION=${GITHUB_REF_NAME#v}
           VERSION=${VERSION#V}
+          # Validate that the version is valid semver
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Invalid version '$VERSION' extracted from tag '${GITHUB_REF_NAME}'. Expected semver (e.g., 1.4.6)."
+            exit 1
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Syncing package.json files to version: $VERSION"
 
