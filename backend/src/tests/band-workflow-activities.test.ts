@@ -645,20 +645,20 @@ describe('Band Workflow Activities', () => {
         expect(projectActivity.resourceLink).toMatch(/^\/projects\/[\w-]+$/);
       }
 
-      // Vibe created should link to vibe within project
+      // Vibe created should link to the project (vibes don't have their own page)
       const vibeActivity = activitiesResponse.body.activities.find(
         (a: any) => a.type === 'vibe_created'
       );
       if (vibeActivity) {
-        expect(vibeActivity.resourceLink).toMatch(/^\/projects\/[\w-]+\/vibes\/[\w-]+$/);
+        expect(vibeActivity.resourceLink).toMatch(/^\/projects\/[\w-]+$/);
       }
 
-      // Cut created should link to cut within vibe
+      // Cut created should link directly to the cut
       const cutActivity = activitiesResponse.body.activities.find(
         (a: any) => a.type === 'cut_created'
       );
       if (cutActivity) {
-        expect(cutActivity.resourceLink).toMatch(/^\/projects\/[\w-]+\/vibes\/[\w-]+\/cuts\/[\w-]+$/);
+        expect(cutActivity.resourceLink).toMatch(/^\/cuts\/[\w-]+$/);
       }
     });
   });
@@ -879,9 +879,8 @@ describe('Band Workflow Activities', () => {
       const metadata = JSON.parse(fileUploadActivity.metadata);
       expect(metadata.fileName).toBe('test-song.mp3');
       expect(metadata.cutName).toBe('Test Cut');
-      expect(fileUploadActivity.resourceLink).toContain('/projects/');
-      expect(fileUploadActivity.resourceLink).toContain('/vibes/');
       expect(fileUploadActivity.resourceLink).toContain('/cuts/');
+      expect(fileUploadActivity.resourceLink).toContain('?tab=audio');
     });
 
     it.skip('should create comment_added activity when member comments on a cut', async () => {

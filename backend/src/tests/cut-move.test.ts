@@ -351,8 +351,7 @@ describe('Cut Move Between Vibes', () => {
         (a: any) => a.type === 'cut_moved'
       );
 
-      expect(moveActivity.resourceLink).toContain(projectSlug);
-      expect(moveActivity.resourceLink).toContain(vibe2Slug);
+      expect(moveActivity.resourceLink).toBe(`/cuts/${cutId}`);
     });
   });
 
